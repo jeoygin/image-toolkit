@@ -31,31 +31,17 @@ namespace op {
 
     bool TemplateOP::init(const map<string, string>& config) {
         template_fno_ = -1;
-        fg_from_fno_ = fg_to_fno_ = -1;
-        fg_from_ = fg_to_ = -1;
 
         CHECK(get_string_value(config, "template", template_fno_, template_))
             << "template is required";
         LOG(INFO) << "template_fno: " << template_fno_ << ", "
                   << "template: " << template_;
 
-        CHECK(get_int_value(config, "fg_from", fg_from_fno_, fg_from_))
-            << "fg_from is required";
-        LOG(INFO) << "fg_from_fno: " << fg_from_fno_ << ", "
-                  << "fg_from: " << fg_from_;
-
-        CHECK(get_int_value(config, "fg_to", fg_to_fno_, fg_to_))
-            << "fg_to is required";
-        LOG(INFO) << "fg_to_fno: " << fg_to_fno_ << ", "
-                  << "fg_to: " << fg_to_;
-
         return true;
     }
 
     bool TemplateOP::is_init() {
-        return (template_fno_ > 0 || !template_.empty())
-            && (fg_from_fno_ > 0 || fg_from_ >= 0)
-            && (fg_to_fno_ > 0 || fg_to_ >= 0);
+        return (template_fno_ > 0 || !template_.empty());
     }
 
     cv::Mat TemplateOP::execute_current(const cv::Mat& img,
@@ -66,18 +52,9 @@ namespace op {
             LOG(ERROR) << "Not grayscale image: " << get_key(fields);
         } else {
             string template_file = template_;
-            int fg_from = fg_from_, fg_to = fg_to_;
 
             if (template_fno_ > 0 && template_fno_ <= fields.size()) {
                 template_file = fields[template_fno_ - 1];
-            }
-
-            if (fg_from_fno_ > 0 && fg_from_fno_ <= fields.size()) {
-                fg_from = std::stoi(fields[fg_from_fno_ - 1]);
-            }
-
-            if (fg_to_fno_ > 0 && fg_to_fno_ <= fields.size()) {
-                fg_to = std::stoi(fields[fg_to_fno_ - 1]);
             }
 
             cv::Mat ret = img.clone();
@@ -88,37 +65,84 @@ namespace op {
                 return ret;
             }
 
+            // Generate binary image
+            cv::Mat binary;
+            cv::threshold(img, binary, 0, 255, CV_THRESH_BINARY|CV_THRESH_OTSU);
+
+            // Calculate text bounding box
+            vector<uchar> fg;
+            vector<int> row_sums;
+            int max_row_sum = 0;
             int width = img.cols, height = img.rows;
             int minx = width - 1, maxx = 0, miny = height - 1, maxy = 0;
-            vector<uchar> fg;
             for (int y = 0; y < height; y++) {
+                int row_sum = cv::sum(binary.row(y))[0];
+                row_sums.push_back(row_sum);
+
                 for (int x = 0; x < width; x++) {
-                    uchar color = img.at<uchar>(y, x);
-                    if (color >= fg_from && color <= fg_to) {
+                    uchar color = binary.at<uchar>(y, x);
+                    if (color >= 128) {
                         minx = min(minx, x);
                         maxx = max(maxx, x);
                         miny = min(miny, y);
                         maxy = max(maxy, y);
-                        fg.push_back(color);
+                        fg.push_back(img.at<uchar>(y, x));
                     }
                 }
             }
 
+            vector<int> sums(row_sums);
+            if (sums.size() > 0) {
+                sort(sums.begin(), sums.end());
+                max_row_sum = sums[(int)(sums.size() * 0.9)];
+            }
 
-            if (fg.size() > 0) {
+            // Refine text bounding box
+            for (int y = miny; y < height; y++) {
+                if (row_sums[y] > max_row_sum * 0.5) {
+                    if (row_sums[miny] < max_row_sum * 0.5) {
+                        miny = y;
+                    }
+                    maxy = y;
+                }
+            }
+
+            if (max_row_sum > 0) {
                 int fg_width = maxx - minx + 1;
                 int fg_height = maxy - miny + 1;
 
-                sort(fg.begin(), fg.end());
-                uchar fg_mid = fg[fg.size() * 75 / 100];
+                int weights[7][7];
+                for (int y = 0; y < 7; y++) {
+                    for (int x = 0; x < 7; x++) {
+                        weights[y][x] = 7 - abs(y - 3) + abs(y - 3);
+                    }
+                }
 
+                sort(fg.begin(), fg.end());
+                uchar fg_mid = fg[(int)(fg.size() * 0.7)];
 
                 for (int y = 0; y < template_img->rows; y++) {
                     for (int x = 0; x < template_img->cols; x++) {
                         if (template_img->at<uchar>(y, x) >= 128) {
                             int fg_x = minx + x * fg_width / template_img->cols;
                             int fg_y = miny + y * fg_height / template_img->rows;
-                            ret.at<uchar>(fg_y, fg_x) = fg_mid;
+                            int sum = fg_mid + img.at<uchar>(fg_y, fg_x);
+                            int cnt = 2;
+                            for (int ky = fg_y - 3; ky <= fg_y + 3; ky++) {
+                                if (ky >= miny && ky <= maxy) {
+                                    for (int kx = fg_x - 3; kx <= fg_x + 3; kx++) {
+                                        if (kx >= minx && kx <= maxx
+                                            && img.at<uchar>(ky, kx) >= 128) {
+                                            int w = weights[ky - fg_y + 3][kx - fg_x + 3];
+                                            cnt += w;
+                                            sum += w * img.at<uchar>(ky, kx);
+                                        }
+                                    }
+                                }
+                            }
+                            if (cnt > 0) {
+                                ret.at<uchar>(fg_y, fg_x) = (uchar)(sum / cnt);
+                            }
                         }
                     }
                 }
