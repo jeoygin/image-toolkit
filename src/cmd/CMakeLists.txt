@@ -17,20 +17,17 @@ add_library(cmd
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g -O2")
 
-find_library(OPENCV_IMGCODECS_LIB opencv_imgcodecs)
-
 target_link_libraries(cmd base64)
 target_link_libraries(cmd db)
 
-target_link_libraries(cmd boost_system)
-target_link_libraries(cmd boost_filesystem)
-target_link_libraries(cmd boost_program_options)
+target_link_libraries(cmd ${Boost_LIBRARIES})
 target_link_libraries(cmd glog)
 target_link_libraries(cmd opencv_core)
 target_link_libraries(cmd opencv_highgui)
 target_link_libraries(cmd opencv_imgproc)
 target_link_libraries(cmd yaml-cpp)
 
+find_library(OPENCV_IMGCODECS_LIB opencv_imgcodecs)
 if(OPENCV_IMGCODECS_LIB)
   target_link_libraries(cmd opencv_imgcodecs)
 endif()
