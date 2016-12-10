@@ -6,6 +6,7 @@
 #include "cmd/op_gray.hpp"
 #include "cmd/op_invert.hpp"
 #include "cmd/op_info.hpp"
+#include "cmd/op_label.hpp"
 #include "cmd/op_resize.hpp"
 #include "cmd/op_rotate.hpp"
 #include "cmd/op_save.hpp"
@@ -36,6 +37,8 @@ namespace op {
             op = new InfoOP();
         } else if (cmd == "invert") {
             op = new InvertOP();
+        } else if (cmd == "label") {
+            op = new LabelOP();
         } else if (cmd == "resize") {
             op = new ResizeOP();
         } else if (cmd == "rotate") {

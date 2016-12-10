@@ -8,6 +8,7 @@ add_library(cmd
   op_gray.cpp
   op_info.cpp
   op_invert.cpp
+  op_label.cpp
   op_resize.cpp
   op_rotate.cpp
   op_save.cpp
