@@ -2,6 +2,7 @@ add_library(cmd
   command_handler.cpp
   operation.cpp
   op_binary.cpp
+  op_blur.cpp
   op_cat.cpp
   op_clip.cpp
   op_equ.cpp

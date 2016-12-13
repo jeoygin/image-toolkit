@@ -61,6 +61,11 @@ namespace op {
 
     bool get_string_value(const map<string, string>& config, const string key,
                           int& fno, string& value);
+
+    int get_field_value(const vector<string>& fields, int fno, int default_value);
+
+    string get_field_value(const vector<string>& fields, int fno,
+                           const string& default_value);
 }
 
 #endif // OPERATION

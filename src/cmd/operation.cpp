@@ -1,5 +1,6 @@
 #include "cmd/operation.hpp"
 #include "cmd/op_binary.hpp"
+#include "cmd/op_blur.hpp"
 #include "cmd/op_cat.hpp"
 #include "cmd/op_clip.hpp"
 #include "cmd/op_equ.hpp"
@@ -25,6 +26,8 @@ namespace op {
         Operation* op = NULL;
         if (cmd == "binary") {
             op = new BinaryOP();
+        } else if (cmd == "blur") {
+            op = new BlurOP();
         } else if (cmd == "cat") {
             op = new CatOP();
         } else if (cmd == "clip") {
@@ -130,5 +133,22 @@ namespace op {
             }
         }
         return true;
+    }
+
+    int get_field_value(const vector<string>& fields, int fno, int default_value) {
+        int value = default_value;
+        if (fno > 0 && fno <= (int) fields.size()) {
+            value = std::stoi(fields[fno-1]);
+        }
+        return value;
+    }
+
+    string get_field_value(const vector<string>& fields, int fno,
+                           const string& default_value) {
+        string value = default_value;
+        if (fno > 0 && fno <= (int) fields.size()) {
+            value = fields[fno-1];
+        }
+        return value;
     }
 }
