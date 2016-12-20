@@ -19,8 +19,8 @@ namespace op {
         if (!is_init()) {
             LOG(ERROR) << "ScaleOp is not initialized";
         } else {
-            int width = get_field_value(fields, width_fno_, width_);
-            int height = get_field_value(fields, height_fno_, height_);
+            double width = get_field_value(fields, width_fno_, width_);
+            double height = get_field_value(fields, height_fno_, height_);
 
             if (width <= 1e-6 || height <= 1e-6) {
                 LOG(ERROR) << "Invalid width x height ("
