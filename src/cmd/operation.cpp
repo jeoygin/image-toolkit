@@ -3,6 +3,7 @@
 #include "cmd/op_blur.hpp"
 #include "cmd/op_cat.hpp"
 #include "cmd/op_clip.hpp"
+#include "cmd/op_contrast.hpp"
 #include "cmd/op_equ.hpp"
 #include "cmd/op_gray.hpp"
 #include "cmd/op_invert.hpp"
@@ -11,6 +12,7 @@
 #include "cmd/op_resize.hpp"
 #include "cmd/op_rotate.hpp"
 #include "cmd/op_save.hpp"
+#include "cmd/op_scale.hpp"
 #include "cmd/op_show.hpp"
 #include "cmd/op_sizeup.hpp"
 #include "cmd/op_template.hpp"
@@ -32,6 +34,8 @@ namespace op {
             op = new CatOP();
         } else if (cmd == "clip") {
             op = new ClipOP();
+        } else if (cmd == "contrast") {
+            op = new ContrastOP();
         } else if (cmd == "equ") {
             op = new EquOP();
         } else if (cmd == "gray") {
@@ -48,6 +52,8 @@ namespace op {
             op = new RotateOP();
         } else if (cmd == "save") {
             op = new SaveOP();
+        } else if (cmd == "scale") {
+            op = new ScaleOP();
         } else if (cmd == "show") {
             op = new ShowOP();
         } else if (cmd == "sizeup") {
@@ -105,50 +111,5 @@ namespace op {
         }
 
         return true;
-    }
-
-    bool get_int_value(const map<string, string>& config, const string key,
-                       int& fno, int& value) {
-        string v = map_get(config, key);
-        if (!v.empty()) {
-            if (v.compare(0, 1, "$") == 0) {
-                fno = std::stoi(v.substr(1));
-            } else {
-                fno = -1;
-                value = std::stoi(v);
-            }
-        }
-        return true;
-    }
-
-    bool get_string_value(const map<string, string>& config, const string key,
-                          int& fno, string& value) {
-        string v = map_get(config, key);
-        if (!v.empty()) {
-            if (v.compare(0, 1, "$") == 0) {
-                fno = std::stoi(v.substr(1));
-            } else {
-                fno = -1;
-                value = v;
-            }
-        }
-        return true;
-    }
-
-    int get_field_value(const vector<string>& fields, int fno, int default_value) {
-        int value = default_value;
-        if (fno > 0 && fno <= (int) fields.size()) {
-            value = std::stoi(fields[fno-1]);
-        }
-        return value;
-    }
-
-    string get_field_value(const vector<string>& fields, int fno,
-                           const string& default_value) {
-        string value = default_value;
-        if (fno > 0 && fno <= (int) fields.size()) {
-            value = fields[fno-1];
-        }
-        return value;
     }
 }

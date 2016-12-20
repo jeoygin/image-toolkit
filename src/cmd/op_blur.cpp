@@ -3,7 +3,7 @@
 
 namespace op {
     bool BlurOP::init(const map<string, string>& config) {
-        get_int_value(config, "kernel", kernel_fno_, kernel_);
+        get_value(config, "kernel", kernel_fno_, kernel_);
 
         return is_init();
     }

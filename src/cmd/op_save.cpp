@@ -12,7 +12,7 @@ namespace op {
             }
         }
 
-        get_string_value(config, "key", key_fno_, key_);
+        get_value(config, "key", key_fno_, key_);
 
         return is_init();
     }
@@ -47,10 +47,7 @@ namespace op {
         if (!is_init()) {
             LOG(ERROR) << "Failed to save image: NULL db";
         } else {
-            string key = key_;
-            if (key_fno_ > 0 && key_fno_ <= fields.size()) {
-                key = fields[key_fno_ - 1];
-            }
+            string key = get_field_value(fields, key_fno_, key_);
 
             if (key.empty()) {
                 LOG(ERROR) << "No save key for image: " << get_key(fields);

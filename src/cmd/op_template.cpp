@@ -32,7 +32,7 @@ namespace op {
     bool TemplateOP::init(const map<string, string>& config) {
         template_fno_ = -1;
 
-        CHECK(get_string_value(config, "template", template_fno_, template_))
+        CHECK(get_value(config, "template", template_fno_, template_))
             << "template is required";
         LOG(INFO) << "template_fno: " << template_fno_ << ", "
                   << "template: " << template_;
@@ -51,11 +51,7 @@ namespace op {
         } else if (img.channels() > 1) {
             LOG(ERROR) << "Not grayscale image: " << get_key(fields);
         } else {
-            string template_file = template_;
-
-            if (template_fno_ > 0 && template_fno_ <= fields.size()) {
-                template_file = fields[template_fno_ - 1];
-            }
+            string template_file = get_field_value(fields, template_fno_, template_);
 
             cv::Mat ret = img.clone();
             boost::shared_ptr<cv::Mat> template_img

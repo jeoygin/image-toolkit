@@ -3,9 +3,9 @@
 
 namespace op {
     bool ResizeOP::init(const map<string, string>& config) {
-        get_int_value(config, "width", width_fno_, width_);
-        get_int_value(config, "height", height_fno_, height_);
-        get_int_value(config, "keep", keep_fno_, keep_);
+        get_value(config, "width", width_fno_, width_);
+        get_value(config, "height", height_fno_, height_);
+        get_value(config, "keep", keep_fno_, keep_);
 
         return is_init();
     }
@@ -20,15 +20,9 @@ namespace op {
         if (!is_init()) {
             LOG(ERROR) << "ResizeOp is not initialized";
         } else {
-            int width = width_, height = height_, keep = keep_;
-
-            if (width_fno_ > 0 && width_fno_ <= fields.size()) {
-                width = std::stoi(fields[width_fno_ - 1]);
-            }
-
-            if (height_fno_ > 0 && height_fno_ <= fields.size()) {
-                height = std::stoi(fields[height_fno_ - 1]);
-            }
+            int width = get_field_value(fields, width_fno_, width_);
+            int height = get_field_value(fields, height_fno_, height_);
+            int keep = get_field_value(fields, keep_fno_, keep_);
 
             if (width <= 0 || height <= 0) {
                 LOG(ERROR) << "Invalid widthxheight ("

@@ -3,7 +3,7 @@
 
 namespace op {
     bool RotateOP::init(const map<string, string>& config) {
-        get_int_value(config, "angle", angle_fno_, angle_);
+        get_value(config, "angle", angle_fno_, angle_);
 
         return is_init();
     }
@@ -18,11 +18,7 @@ namespace op {
         if (!is_init()) {
             LOG(ERROR) << "RotateOp is not initialized";
         } else {
-            int angle = angle_;
-
-            if (angle_fno_ > 0 && angle_fno_ <= fields.size()) {
-                angle = std::stoi(fields[angle_fno_ - 1]);
-            }
+            int angle = get_field_value(fields, angle_fno_, angle_);
 
             cv::Point2f center(img.cols/2.0F, img.rows/2.0F);
             cv::Mat rot = getRotationMatrix2D(center, angle, 1.0);

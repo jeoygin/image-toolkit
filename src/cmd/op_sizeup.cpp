@@ -3,7 +3,7 @@
 
 namespace op {
     bool SizeupOP::init(const map<string, string>& config) {
-        get_int_value(config, "size", size_fno_, size_);
+        get_value(config, "size", size_fno_, size_);
 
         return is_init();
     }
@@ -18,11 +18,7 @@ namespace op {
         if (!is_init()) {
             LOG(ERROR) << "SizeupOp is not initialized";
         } else {
-            int size = size_;
-
-            if (size_fno_ > 0 && size_fno_ <= fields.size()) {
-                size = std::stoi(fields[size_fno_ - 1]);
-            }
+            int size = get_field_value(fields, size_fno_, size_);
 
             if (size <= 0) {
                 LOG(ERROR) << "Invalid size (" << size <<"): " << get_key(fields);

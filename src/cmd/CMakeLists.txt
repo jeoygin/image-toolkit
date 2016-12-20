@@ -5,6 +5,7 @@ add_library(cmd
   op_blur.cpp
   op_cat.cpp
   op_clip.cpp
+  op_contrast.cpp
   op_equ.cpp
   op_gray.cpp
   op_info.cpp
@@ -13,6 +14,7 @@ add_library(cmd
   op_resize.cpp
   op_rotate.cpp
   op_save.cpp
+  op_scale.cpp
   op_show.cpp
   op_sizeup.cpp
   op_template.cpp)

@@ -2,12 +2,15 @@
 #define OPERATION
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 #include <boost/shared_ptr.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv/cv.hpp>
 #include <glog/logging.h>
+
+#include "misc/map.hpp"
 
 using namespace std;
 
@@ -56,16 +59,31 @@ namespace op {
     bool create_ops_from_config(const string& opsfile,
                                 vector<boost::shared_ptr<op::Operation>>& ops);
 
-    bool get_int_value(const map<string, string>& config, const string key,
-                       int& fno, int& value);
+    template<class T>
+    bool get_value(const map<string, string>& config, const string key,
+                   int& fno, T& value) {
+        string v = map_get(config, key);
+        if (!v.empty()) {
+            if (v.compare(0, 1, "$") == 0) {
+                fno = std::stoi(v.substr(1));
+            } else {
+                fno = -1;
+                std::stringstream ss(v);
+                ss >> value;
+            }
+        }
+        return true;
+    }
 
-    bool get_string_value(const map<string, string>& config, const string key,
-                          int& fno, string& value);
-
-    int get_field_value(const vector<string>& fields, int fno, int default_value);
-
-    string get_field_value(const vector<string>& fields, int fno,
-                           const string& default_value);
+    template<class T>
+    T get_field_value(const vector<string>& fields, int fno, T default_value) {
+        T value = default_value;
+        if (fno > 0 && fno <= (int) fields.size()) {
+            std::stringstream ss(fields[fno-1]);
+            ss >> value;
+        }
+        return value;
+    }
 }
 
 #endif // OPERATION
