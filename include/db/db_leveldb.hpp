@@ -53,6 +53,10 @@ namespace db {
             batch_.Put(key, value);
         }
 
+        virtual void del(const string& key) {
+            batch_.Delete(key);
+        }
+
         virtual void flush() {
             leveldb::Status status = db_->Write(leveldb::WriteOptions(), &batch_);
             CHECK(status.ok()) << "Failed to write batch to leveldb"
@@ -92,6 +96,10 @@ namespace db {
 
         virtual void put(const string& key, const string& value) {
             db_->Put(leveldb::WriteOptions(), key, value);
+        }
+
+        virtual void del(const string& key) {
+            db_->Delete(leveldb::WriteOptions(), key);
         }
 
         virtual LevelDBIterator* new_iterator() {

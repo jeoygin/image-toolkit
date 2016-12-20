@@ -39,7 +39,7 @@ namespace db {
         string root_;
         vector<string> files_;
         vector<string>::iterator iter_;
-        char* data_;
+        char* data_ = NULL;
 
         void delete_data() {
             if (data_ != NULL) {
@@ -56,6 +56,8 @@ namespace db {
         virtual void put(const string& key, const vector<unsigned char>& value);
 
         virtual void put(const string& key, const string& value);
+
+        virtual void del(const string& key);
 
         virtual void flush() {}
 
@@ -83,6 +85,8 @@ namespace db {
         virtual void put(const string& key, const vector<unsigned char>& value);
 
         virtual void put(const string& key, const string& value);
+
+        virtual void del(const string& key);
 
         int copy(const string& key, DB* dst, const string& dst_key,
                  vector<unsigned char>& aux) {

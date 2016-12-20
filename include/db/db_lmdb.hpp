@@ -72,6 +72,8 @@ namespace db {
 
         virtual void put(const string& key, const string& value);
 
+        virtual void del(const string& key);
+
         virtual void flush() {
             MDB_CHECK(mdb_txn_commit(mdb_txn_));
         }
@@ -119,6 +121,8 @@ namespace db {
         virtual string get(const string& key);
 
         virtual void put(const string& key, const string& value);
+
+        virtual void del(const string& key);
 
         virtual LMDBIterator* new_iterator();
 

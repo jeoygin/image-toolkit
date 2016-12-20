@@ -83,6 +83,10 @@ namespace fs {
         return NULL;
     }
 
+    bool rm(const string& path) {
+        return remove(path.c_str()) == 0;
+    }
+
     static void file_tree_walk(const string& dir, vector<string>& files,
                                const int root_len) {
         DIR* dirp = opendir(dir.c_str());

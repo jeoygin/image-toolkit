@@ -54,6 +54,10 @@ namespace db {
             batch_.Put(key, value);
         }
 
+        virtual void del(const string& key) {
+            batch_.Delete(key);
+        }
+
         virtual void flush() {
             rocksdb::Status status = db_->Write(rocksdb::WriteOptions(), &batch_);
             CHECK(status.ok()) << "Failed to write batch to rocksdb"
@@ -93,6 +97,10 @@ namespace db {
 
         virtual void put(const string& key, const string& value) {
             db_->Put(rocksdb::WriteOptions(), key, value);
+        }
+
+        virtual void del(const string& key) {
+            db_->Delete(rocksdb::WriteOptions(), key);
         }
 
         virtual RocksDBIterator* new_iterator() {

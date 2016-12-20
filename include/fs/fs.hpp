@@ -17,6 +17,7 @@ namespace fs {
     int make_dir(const string& dir);
     string get_dirname(const string& path);
     string get_basename(const string& path);
+    bool rm(const string& path);
     void list_file(const string& dir, vector<string>& files);
 } // namespace fs
 

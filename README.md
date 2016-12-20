@@ -55,6 +55,15 @@ $ cat img.lst
 1.png::1.jpg
 ```
 
+### Delete images ###
+
+```
+$ bin/imgtk -s lmdb:/path/to/lmdb/dir -c delete -l delete.lst
+$ cat delete.lst
+/key/of/0.png
+/key/of/1.png
+```
+
 ### Pipe Operations ###
 
 ```

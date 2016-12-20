@@ -76,6 +76,11 @@ namespace db {
         writer->put(key, value);
     }
 
+    void LMDB::del(const string& key) {
+        boost::scoped_ptr<LMDBWriter> writer(new_writer());
+        writer->del(key);
+    }
+
     void LMDBWriter::put(const string& key, const string& value) {
         MDB_val mdb_key, mdb_value;
         mdb_key.mv_data = const_cast<char*>(key.data());
@@ -83,6 +88,13 @@ namespace db {
         mdb_value.mv_data = const_cast<char*>(value.data());
         mdb_value.mv_size = value.size();
         MDB_CHECK(mdb_put(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value, 0));
+    }
+
+    void LMDBWriter::del(const string& key) {
+        MDB_val mdb_key;
+        mdb_key.mv_data = const_cast<char*>(key.data());
+        mdb_key.mv_size = key.size();
+        MDB_CHECK(mdb_del(mdb_txn_, *mdb_dbi_, &mdb_key, NULL));
     }
 
     string LMDBReader::get(const string& key) {

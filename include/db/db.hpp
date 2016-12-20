@@ -39,6 +39,7 @@ namespace db {
             put(key, str_value);
         }
         virtual void put(const string& key, const string& value) = 0;
+        virtual void del(const string& key) = 0;
         virtual void flush() = 0;
     };
 
@@ -64,6 +65,8 @@ namespace db {
             string str_value = base64_encode(value.data(), value.size());
             put(key, str_value);
         }
+
+        virtual void del(const string& key) = 0;
 
         virtual int copy(const string& key, DB* dst, const string& dst_key,
                          vector<unsigned char>& aux) {

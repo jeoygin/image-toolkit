@@ -10,8 +10,25 @@
 #include <opencv2/opencv.hpp>
 #include <opencv/cv.h>
 #include <yaml-cpp/yaml.h>
+#include <boost/scoped_ptr.hpp>
+
+const std::string delim = "::";
 
 namespace cmd {
+    static void parse_fields(const std::string& line, 
+                             const std::string& delim,
+                             std::vector<std::string>& fields) {
+        fields.clear();
+        size_t pos, cur_pos = 0;
+        while ((pos = line.find(delim, cur_pos)) != string::npos) {
+            fields.push_back(line.substr(cur_pos, pos - cur_pos));
+            cur_pos = pos + 2;
+        }
+        if (cur_pos < line.size()) {
+            fields.push_back(line.substr(cur_pos));
+        }
+    }
+
     static int process_list(ImageDBConfig& config, std::istream& list_stream,
                             boost::shared_ptr<CommandProcessor> processor) {
         db::DB* src_db = db::open_db(config.src(), db::READ);
@@ -28,15 +45,7 @@ namespace cmd {
                 continue;
             }
 
-            fields.clear();
-            size_t pos, cur_pos = 0;
-            while ((pos = line.find("::", cur_pos)) != string::npos) {
-                fields.push_back(line.substr(cur_pos, pos - cur_pos));
-                cur_pos = pos + 2;
-            }
-            if (cur_pos < line.size()) {
-                fields.push_back(line.substr(cur_pos));
-            }
+            parse_fields(line, delim, fields);
 
             try {
                 string key = fields[0];
@@ -73,12 +82,13 @@ namespace cmd {
 
     int CommandHandler::process(const string& cmd, ImageDBConfig& config) {
         if (cmd == "list") {
-            db::DB* db = db::open_db(config.src(), db::READ);
+            boost::scoped_ptr<db::DB> db(db::open_db(config.src(), db::READ));
             if (!db) {
                 LOG(ERROR) << "Failed to open db: " << config.src();
                 return -1;
             }
-            for (db::Iterator* it = db->new_iterator(); it->valid(); it->next()) {
+            for (boost::scoped_ptr<db::Iterator> it(db->new_iterator());
+                 it->valid(); it->next()) {
                 cout << it->key() << endl;
             }
             return 0;
@@ -106,6 +116,40 @@ namespace cmd {
             processor.reset(new PipeProcessor(ops));
         } else if (cmd == "save") {
             processor.reset(new SaveProcessor(config.dst()));
+        } else if (cmd == "delete") {
+            boost::scoped_ptr<db::DB> db(db::open_db(config.src(), db::WRITE));
+            if (!db) {
+                LOG(ERROR) << "Failed to open db: " << config.src();
+                return -1;
+            }
+            boost::scoped_ptr<db::Writer> writer(db->new_writer());
+
+            vector<string> fields;
+            int processed = 0;
+            for (string line; std::getline(list_stream, line); ) {
+                if (line.empty()) {
+                    continue;
+                }
+
+                parse_fields(line, delim, fields);
+                string key = fields[0];
+                writer->del(key);
+
+                ++processed;
+                if (processed % 1000 == 0) {
+                    LOG(INFO) << "Processed " << processed << " records." << endl;
+                    writer->flush();
+                    writer.reset(db->new_writer());
+                }
+            }
+
+            if (processed % 1000 != 0) {
+                LOG(INFO) << "Processed " << processed << " records." << endl;
+                writer->flush();
+                writer.reset(db->new_writer());
+            }
+
+            return 0;
         } else {
             std::map<string, string> ops_config;
             ops_config["cmd"] = cmd;
