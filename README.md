@@ -21,6 +21,50 @@ Options:
   -v [ --verbose ]      produce verbose output
 ```
 
+## Supported Operations ##
+
+* list
+* delete
+* save
+  * db
+  * key
+* binary
+* blur
+* cat
+* clip
+  * x
+  * y
+  * w
+  * h
+* contrast
+  * alpha
+  * beta
+* equ
+* gray
+* info
+* invert
+* label
+* resize
+  * width
+  * height
+  * keep
+* rotate
+  * angle
+* scale
+  * width
+  * height
+* sharpen
+  * sigmax
+  * sigmay
+  * threshold
+  * amount
+* show
+* sizeup
+  * size
+* template
+  * template
+
+
 ## Examples ##
 
 ### List all keys in DB ###
