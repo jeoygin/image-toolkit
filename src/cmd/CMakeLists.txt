@@ -15,6 +15,7 @@ add_library(cmd
   op_rotate.cpp
   op_save.cpp
   op_scale.cpp
+  op_sharpen.cpp
   op_show.cpp
   op_sizeup.cpp
   op_template.cpp)

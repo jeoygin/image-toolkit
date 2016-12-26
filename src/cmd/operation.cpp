@@ -13,6 +13,7 @@
 #include "cmd/op_rotate.hpp"
 #include "cmd/op_save.hpp"
 #include "cmd/op_scale.hpp"
+#include "cmd/op_sharpen.hpp"
 #include "cmd/op_show.hpp"
 #include "cmd/op_sizeup.hpp"
 #include "cmd/op_template.hpp"
@@ -54,6 +55,8 @@ namespace op {
             op = new SaveOP();
         } else if (cmd == "scale") {
             op = new ScaleOP();
+        } else if (cmd == "sharpen") {
+            op = new SharpenOP();
         } else if (cmd == "show") {
             op = new ShowOP();
         } else if (cmd == "sizeup") {
