@@ -79,7 +79,7 @@ namespace op {
             std::fill_n(row_cnt, height, 0);
 
             for (int y = 0; y < height; y++) {
-                row_sums.push_back(cv::sum(binary.row(y))[0]);
+                row_sums.push_back(width - cv::sum(binary.row(y))[0] / 255);
 
                 for (int x = 0; x < width; x++) {
                     uchar color = binary.at<uchar>(y, x);
@@ -106,7 +106,7 @@ namespace op {
                 if (cnt > 0) {
                     col_avg[x] = sum / cnt;
                 } else {
-                    col_avg[x] = 255;
+                    col_avg[x] = 192;
                 }
             }
 
@@ -119,7 +119,7 @@ namespace op {
                 if (cnt > 0) {
                     row_avg[y] = sum / cnt;
                 } else {
-                    row_avg[y] = 255;
+                    row_avg[y] = 192;
                 }
             }
 
