@@ -71,19 +71,55 @@ namespace op {
             int max_row_sum = 0;
             int width = img.cols, height = img.rows;
             int minx = width - 1, maxx = 0, miny = height - 1, maxy = 0;
+            int col_sum[width], col_avg[width], col_cnt[width];
+            int row_sum[width], row_avg[height], row_cnt[height];
+            std::fill_n(col_sum, width, 0);
+            std::fill_n(col_cnt, width, 0);
+            std::fill_n(row_sum, height, 0);
+            std::fill_n(row_cnt, height, 0);
+
             for (int y = 0; y < height; y++) {
-                int row_sum = cv::sum(binary.row(y))[0];
-                row_sums.push_back(row_sum);
+                row_sums.push_back(cv::sum(binary.row(y))[0]);
 
                 for (int x = 0; x < width; x++) {
                     uchar color = binary.at<uchar>(y, x);
-                    if (color >= 128) {
+                    if (color < 128) {
                         minx = min(minx, x);
                         maxx = max(maxx, x);
                         miny = min(miny, y);
                         maxy = max(maxy, y);
                         fg.push_back(img.at<uchar>(y, x));
+                        col_sum[x] += img.at<uchar>(y, x);
+                        row_sum[y] += img.at<uchar>(y, x);
+                        col_cnt[x]++;
+                        row_cnt[y]++;
                     }
+                }
+            }
+
+            for (int x = 0; x < width; x++) {
+                int sum = 0, cnt = 0;
+                for (int i = max(0, x - 1); i < min(width, x + 1); i++) {
+                    sum += col_sum[i];
+                    cnt += col_cnt[i];
+                }
+                if (cnt > 0) {
+                    col_avg[x] = sum / cnt;
+                } else {
+                    col_avg[x] = 255;
+                }
+            }
+
+            for (int y = 0; y < height; y++) {
+                int sum = 0, cnt = 0;
+                for (int i = max(0, y - 1); i < min(height, y + 1); i++) {
+                    sum += row_sum[i];
+                    cnt += row_cnt[i];
+                }
+                if (cnt > 0) {
+                    row_avg[y] = sum / cnt;
+                } else {
+                    row_avg[y] = 255;
                 }
             }
 
@@ -103,42 +139,42 @@ namespace op {
                 }
             }
 
+            minx = max(0, minx - (maxx - minx) / 10);
+            maxx = min(width, maxx + (maxx - minx) / 10);
+
             if (max_row_sum > 0) {
                 int fg_width = maxx - minx + 1;
                 int fg_height = maxy - miny + 1;
 
-                int weights[7][7];
-                for (int y = 0; y < 7; y++) {
-                    for (int x = 0; x < 7; x++) {
-                        weights[y][x] = 7 - abs(y - 3) + abs(y - 3);
+                int weights[5][5];
+                for (int y = 0; y < 5; y++) {
+                    for (int x = 0; x < 5; x++) {
+                        weights[y][x] = 5 - abs(x - 2) - abs(y - 2);
                     }
                 }
 
-                sort(fg.begin(), fg.end());
-                uchar fg_mid = fg[(int)(fg.size() * 0.7)];
-
-                for (int y = 0; y < template_img->rows; y++) {
-                    for (int x = 0; x < template_img->cols; x++) {
-                        if (template_img->at<uchar>(y, x) >= 128) {
-                            int fg_x = minx + x * fg_width / template_img->cols;
-                            int fg_y = miny + y * fg_height / template_img->rows;
-                            int sum = fg_mid + img.at<uchar>(fg_y, fg_x);
-                            int cnt = 2;
-                            for (int ky = fg_y - 3; ky <= fg_y + 3; ky++) {
-                                if (ky >= miny && ky <= maxy) {
-                                    for (int kx = fg_x - 3; kx <= fg_x + 3; kx++) {
-                                        if (kx >= minx && kx <= maxx
-                                            && img.at<uchar>(ky, kx) >= 128) {
-                                            int w = weights[ky - fg_y + 3][kx - fg_x + 3];
+                for (int y = miny; y <= maxy; y++) {
+                    for (int x = minx; x <= maxx; x++) {
+                        int tempx = (x - minx) * template_img->cols / fg_width;
+                        int tempy = (y - miny) * template_img->rows / fg_height;
+                        if (template_img->at<uchar>(tempy, tempx) >= 128) {
+                            int sum = 0, cnt = 0;
+                            for (int ky  = y - 2; ky <= y + 2; ky++) {
+                                if (ky >= 0 && ky < height) {
+                                    for (int kx = x - 2; kx <= x + 2; kx++) {
+                                        if (kx >= 0 && kx < width) {
+                                            int w = weights[ky - y + 2][kx - x + 2];
                                             cnt += w;
                                             sum += w * img.at<uchar>(ky, kx);
                                         }
                                     }
                                 }
                             }
-                            if (cnt > 0) {
-                                ret.at<uchar>(fg_y, fg_x) = (uchar)(sum / cnt);
-                            }
+
+                            int avg = sum / cnt;
+                            int color = min(avg, min(col_avg[x], row_avg[y]));
+                            double transparent = template_img->at<uchar>(tempy, tempx) / 255.0;
+                            ret.at<uchar>(y, x) = (uchar)(255-(255-color)*transparent);
                         }
                     }
                 }
