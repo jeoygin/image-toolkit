@@ -43,7 +43,79 @@ namespace op {
                     cv::Mat tmp;
                     cv::resize(img, tmp, cv::Size(tmp_width, tmp_height));
 
-                    ret = cv::Mat::zeros(width, height, img.type());
+                    cv::Mat resized, background, binary;
+                    cv::resize(img, resized, cv::Size(width, height));
+                    cv::threshold(resized, binary, 0, 255, CV_THRESH_BINARY|CV_THRESH_OTSU);
+
+                    int col_sum[width], col_avg[width], col_cnt[width];
+                    int row_sum[height], row_avg[height], row_cnt[height];
+                    std::fill_n(col_sum, width, 0);
+                    std::fill_n(col_cnt, width, 0);
+                    std::fill_n(row_sum, height, 0);
+                    std::fill_n(row_cnt, height, 0);
+
+                    int fg_max = 0;
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            if (binary.at<uchar>(y, x) >= 128) {
+                                uchar color = resized.at<uchar>(y, x);
+                                fg_max = max(fg_max, (int) color);
+                                col_sum[x] += color;
+                                row_sum[y] += color;
+                                col_cnt[x]++;
+                                row_cnt[y]++;
+                            }
+                        }
+                    }
+
+                    for (int x = 0; x < width; x++) {
+                        int sum = 0, cnt = 0;
+                        for (int i = max(0, x - 1); i < min(width, x + 1); i++) {
+                            sum += col_sum[i];
+                            cnt += col_cnt[i];
+                        }
+                        if (cnt > 0) {
+                            col_avg[x] = min(fg_max, (int) (sum / cnt));
+                        } else {
+                            col_avg[x] = fg_max;
+                        }
+                    }
+
+                    for (int y = 0; y < height; y++) {
+                        int sum = 0, cnt = 0;
+                        for (int i = max(0, y - 1); i < min(height, y + 1); i++) {
+                            sum += row_sum[i];
+                            cnt += row_cnt[i];
+                        }
+                        if (cnt > 0) {
+                            row_avg[y] = min(fg_max, (int) (sum / cnt));
+                        } else {
+                            row_avg[y] = fg_max;
+                        }
+                    }
+
+                    cv::Mat kernel(5, 5, CV_32F, cv::Scalar(0));
+                    int wsum = 0;
+                    for (int i = 0; i < 5; i++) {
+                        for (int j = 0; j < 5; j++) {
+                            int w = 5 - abs(i-2) - abs(j-2);
+                            kernel.at<float>(i, j) = (float) w;
+                            wsum += w;
+                        }
+                    }
+                    kernel /= wsum;
+                    cv::filter2D(resized, background, resized.depth(), kernel);
+
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            int color = max(col_avg[x], row_avg[y]);
+                            if (color > background.at<uchar>(y, x)) {
+                                background.at<uchar>(y, x) = (uchar) color;
+                            }
+                        }
+                    }
+
+                    ret = background.clone();
                     tmp.copyTo(ret(cv::Rect((width - tmp_width) / 2,
                                             (height - tmp_height) / 2,
                                             tmp_width, tmp_height)));

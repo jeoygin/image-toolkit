@@ -72,7 +72,7 @@ namespace op {
             int width = img.cols, height = img.rows;
             int minx = width - 1, maxx = 0, miny = height - 1, maxy = 0;
             int col_sum[width], col_avg[width], col_cnt[width];
-            int row_sum[width], row_avg[height], row_cnt[height];
+            int row_sum[height], row_avg[height], row_cnt[height];
             std::fill_n(col_sum, width, 0);
             std::fill_n(col_cnt, width, 0);
             std::fill_n(row_sum, height, 0);
