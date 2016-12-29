@@ -46,6 +46,7 @@ namespace op {
                     cv::Mat resized, background, binary;
                     cv::resize(img, resized, cv::Size(width, height));
                     cv::threshold(resized, binary, 0, 255, CV_THRESH_BINARY|CV_THRESH_OTSU);
+                    cv::erode(binary.clone(), binary, cv::Mat(), cv::Point(-1, -1), 1);
 
                     int col_sum[width], col_avg[width], col_cnt[width];
                     int row_sum[height], row_avg[height], row_cnt[height];
@@ -105,6 +106,8 @@ namespace op {
                     }
                     kernel /= wsum;
                     cv::filter2D(resized, background, resized.depth(), kernel);
+                    cv::GaussianBlur(background.clone(), background,
+                                     cv::Size(5, 5), 0, 0);
 
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
