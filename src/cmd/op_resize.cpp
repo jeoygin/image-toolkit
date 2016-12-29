@@ -116,9 +116,7 @@ namespace op {
                     }
 
                     ret = background.clone();
-                    tmp.copyTo(ret(cv::Rect((width - tmp_width) / 2,
-                                            (height - tmp_height) / 2,
-                                            tmp_width, tmp_height)));
+                    tmp.copyTo(ret(cv::Rect(0, 0, tmp_width, tmp_height)));
                 }
             }
         }
