@@ -63,7 +63,10 @@ Options:
   * size
 * template
   * template
-
+* update
+  * from
+  * to
+  * value
 
 ## Examples ##
 

@@ -17,6 +17,7 @@
 #include "cmd/op_show.hpp"
 #include "cmd/op_sizeup.hpp"
 #include "cmd/op_template.hpp"
+#include "cmd/op_update.hpp"
 #include "misc/map.hpp"
 
 #include <glog/logging.h>
@@ -63,6 +64,8 @@ namespace op {
             op = new SizeupOP();
         } else if (cmd == "template") {
             op = new TemplateOP();
+        } else if (cmd == "update") {
+            op = new UpdateOP();
         }
 
         if (op != NULL) {
