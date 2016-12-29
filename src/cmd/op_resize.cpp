@@ -55,14 +55,16 @@ namespace op {
                     std::fill_n(row_sum, height, 0);
                     std::fill_n(row_cnt, height, 0);
 
-                    int fg_max = 0;
+                    int fg_max = 0, fg_sum = 0, fg_cnt = 0;
                     for (int y = 0; y < height; y++) {
                         for (int x = 0; x < width; x++) {
                             if (binary.at<uchar>(y, x) >= 128) {
                                 uchar color = resized.at<uchar>(y, x);
+                                fg_sum += color;
                                 fg_max = max(fg_max, (int) color);
                                 col_sum[x] += color;
                                 row_sum[y] += color;
+                                fg_cnt++;
                                 col_cnt[x]++;
                                 row_cnt[y]++;
                             }
@@ -78,7 +80,7 @@ namespace op {
                         if (cnt > 0) {
                             col_avg[x] = min(fg_max, (int) (sum / cnt));
                         } else {
-                            col_avg[x] = fg_max;
+                            col_avg[x] = fg_cnt > 0 ? fg_sum / fg_cnt : 0;
                         }
                     }
 
@@ -91,7 +93,7 @@ namespace op {
                         if (cnt > 0) {
                             row_avg[y] = min(fg_max, (int) (sum / cnt));
                         } else {
-                            row_avg[y] = fg_max;
+                            row_avg[y] = fg_cnt > 0 ? fg_sum / fg_cnt : 0;
                         }
                     }
 
