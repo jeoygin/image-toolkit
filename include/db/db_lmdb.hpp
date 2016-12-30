@@ -8,8 +8,9 @@
 #include "db.hpp"
 
 namespace db {
-    inline void MDB_CHECK(int mdb_status) {
-        CHECK_EQ(mdb_status, MDB_SUCCESS) << mdb_strerror(mdb_status);
+    inline void MDB_CHECK(int mdb_status, string msg = "") {
+        CHECK_EQ(mdb_status, MDB_SUCCESS) << mdb_strerror(mdb_status) 
+                                          << " " << msg;
     }
 
     class LMDBIterator : public Iterator {

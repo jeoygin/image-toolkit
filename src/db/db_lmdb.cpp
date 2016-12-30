@@ -101,7 +101,9 @@ namespace db {
         MDB_val mdb_key, mdb_value;
         mdb_key.mv_data = const_cast<char*>(key.data());
         mdb_key.mv_size = key.size();
-        MDB_CHECK(mdb_get(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value));
+        if (mdb_get(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value) != MDB_SUCCESS) {
+            return NULL;
+        }
 
         return string(static_cast<const char*>(mdb_value.mv_data),
                       mdb_value.mv_size);
