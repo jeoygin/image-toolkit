@@ -102,7 +102,7 @@ namespace db {
         mdb_key.mv_data = const_cast<char*>(key.data());
         mdb_key.mv_size = key.size();
         if (mdb_get(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value) != MDB_SUCCESS) {
-            return NULL;
+            return "";
         }
 
         return string(static_cast<const char*>(mdb_value.mv_data),

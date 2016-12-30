@@ -91,7 +91,7 @@ namespace db {
             if (s.ok()) {
                 return value;
             }
-            return NULL;
+            return "";
         }
 
         virtual void put(const string& key, const string& value) {
