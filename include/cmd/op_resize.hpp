@@ -20,8 +20,13 @@ namespace op {
         int height_ = 0;
         int keep_fno_ = 5;
         int keep_ = 0;
+        int bg_fno_ = 6;
+        int bg_ = 0;
         cv::Mat execute_current(const cv::Mat& img,
                                 const std::vector<std::string>& fields);
+
+        cv::Mat generate_background(const cv::Mat& img,
+                                    int width, int height, int bg);
     };
 }
 
