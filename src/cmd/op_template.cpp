@@ -71,6 +71,7 @@ namespace op {
             int max_row_sum = 0;
             int width = img.cols, height = img.rows;
             int minx = width - 1, maxx = 0, miny = height - 1, maxy = 0;
+            uchar ming = 255, maxg = 0;
             int col_sum[width], col_avg[width], col_cnt[width];
             int row_sum[height], row_avg[height], row_cnt[height];
             std::fill_n(col_sum, width, 0);
@@ -82,15 +83,18 @@ namespace op {
                 row_sums.push_back(width - cv::sum(binary.row(y))[0] / 255);
 
                 for (int x = 0; x < width; x++) {
-                    uchar color = binary.at<uchar>(y, x);
-                    if (color < 128) {
+                    uchar bcolor = binary.at<uchar>(y, x);
+                    uchar color = img.at<uchar>(y, x);
+                    if (bcolor < 128) {
                         minx = min(minx, x);
                         maxx = max(maxx, x);
                         miny = min(miny, y);
                         maxy = max(maxy, y);
-                        fg.push_back(img.at<uchar>(y, x));
-                        col_sum[x] += img.at<uchar>(y, x);
-                        row_sum[y] += img.at<uchar>(y, x);
+                        ming = min(ming, color);
+                        maxg = max(maxg, color);
+                        fg.push_back(color);
+                        col_sum[x] += color;
+                        row_sum[y] += color;
                         col_cnt[x]++;
                         row_cnt[y]++;
                     }
@@ -126,7 +130,7 @@ namespace op {
             vector<int> sums(row_sums);
             if (sums.size() > 0) {
                 sort(sums.begin(), sums.end());
-                max_row_sum = sums[(int)(sums.size() * 0.9)];
+                max_row_sum = sums[(int)(sums.size() * 0.5)];
             }
 
             // Refine text bounding box
@@ -153,6 +157,7 @@ namespace op {
                     }
                 }
 
+                int fg_sum = 0, fg_cnt = 0;
                 for (int y = miny; y <= maxy; y++) {
                     for (int x = minx; x <= maxx; x++) {
                         int tempx = (x - minx) * template_img->cols / fg_width;
@@ -173,10 +178,30 @@ namespace op {
 
                             int avg = sum / cnt;
                             int color = min(avg, min(col_avg[x], row_avg[y]));
-                            double transparent = template_img->at<uchar>(tempy, tempx) / 255.0;
-                            ret.at<uchar>(y, x) = (uchar)(255-(255-color)*transparent);
+                            fg_sum += color;
+                            fg_cnt++;
                         }
                     }
+                }
+
+                if (fg_cnt > 0) {
+                    int template_avg = fg_sum / fg_cnt;
+                    cv::Mat timg = cv::Mat(img.rows, img.cols, CV_8U, cv::Scalar(maxg));
+                    for (int y = miny; y <= maxy; y++) {
+                        for (int x = minx; x <= maxx; x++) {
+                            int tempx = (x - minx) * template_img->cols / fg_width;
+                            int tempy = (y - miny) * template_img->rows / fg_height;
+                            if (template_img->at<uchar>(tempy, tempx) >= 128) {
+                                double transparent = template_img->at<uchar>(tempy, tempx) / 255.0;
+                                uchar color = (uchar)(template_avg*transparent + ret.at<uchar>(y, x)*(1-transparent) + 0.5);
+                                timg.at<uchar>(y, x) = color;
+                            }
+                        }
+                    }
+
+                    cv::bilateralFilter(timg.clone(), timg, 3, 6, 1);
+                    cv::Mat mask = timg < (ming + (maxg - ming) * 9 / 10);
+                    timg.copyTo(ret, mask);
                 }
             }
 
