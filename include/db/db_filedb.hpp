@@ -59,7 +59,7 @@ namespace db {
 
         virtual void put(const string& key, const string& value);
 
-        virtual void del(const string& key);
+        virtual bool del(const string& key);
 
         virtual void flush() {}
 
@@ -88,7 +88,7 @@ namespace db {
 
         virtual void put(const string& key, const string& value);
 
-        virtual void del(const string& key);
+        virtual bool del(const string& key);
 
         int copy(const string& key, DB* dst, const string& dst_key,
                  vector<unsigned char>& aux) {

@@ -56,8 +56,9 @@ namespace db {
             batch_.Put(key, value);
         }
 
-        virtual void del(const string& key) {
+        virtual bool del(const string& key) {
             batch_.Delete(key);
+            return true;
         }
 
         virtual void flush() {
@@ -102,8 +103,12 @@ namespace db {
             db_->Put(leveldb::WriteOptions(), key, value);
         }
 
-        virtual void del(const string& key) {
-            db_->Delete(leveldb::WriteOptions(), key);
+        virtual bool del(const string& key) {
+            leveldb::Status s = db_->Delete(leveldb::WriteOptions(), key);
+            if (s.ok()) {
+                return true;
+            }
+            return false;
         }
 
         virtual LevelDBIterator* new_iterator() {

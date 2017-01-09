@@ -159,6 +159,101 @@ namespace cmd {
         db::Writer* writer_ = NULL;
         std::vector<unsigned char> content_;
     };
+
+    class DeleteProcessor : public CommandProcessor {
+    public:
+        DeleteProcessor(const string& url, const string& save_url,
+                        boost::shared_ptr<encode::Encoder> encoder) {
+            db_ = db::open_db(url, db::WRITE, encoder);
+            if (db_) {
+                writer_ = db_->new_writer();
+            }
+
+            if (!save_url.empty()) {
+                save_ = true;
+                save_db_ = db::open_db(save_url, db::WRITE, encoder);
+                if (save_db_) {
+                    save_writer_ = save_db_->new_writer();
+                }
+            }
+        }
+
+        ~DeleteProcessor() {}
+
+        int run(db::DB* db, const int idx,
+                const std::vector<string>& fields) {
+            if (!writer_ || (save_ && !save_writer_)) {
+                return -1;
+            } else if (db == NULL) {
+                return -2;
+            } else if ((!save_ && fields.size() < 1)
+                       || (save_ && fields.size() < 2)) {
+                return -3;
+            }
+
+            std::string key = fields[0];
+            if (save_) {
+                std::string dst_key = fields[1];
+                int ret = db_->copy(key, save_writer_, dst_key, content_);
+                if (ret == -2) {
+                    return -4;
+                }
+            }
+
+            if (!writer_->del(key)) {
+                return -4;
+            }
+
+            return 0;
+        }
+
+        void refresh() {
+            if (writer_) {
+                writer_->flush();
+                delete writer_;
+                writer_ = db_->new_writer();
+            }
+
+            if (save_writer_) {
+                save_writer_->flush();
+                delete save_writer_;
+                save_writer_ = save_db_->new_writer();
+            }
+        }
+
+        void done() {
+            if (writer_) {
+                delete writer_;
+                writer_ = NULL;
+            }
+
+            if (db_) {
+                db_->close();
+                db_ = NULL;
+            }
+
+            if (save_writer_) {
+                delete save_writer_;
+                save_writer_ = NULL;
+            }
+
+            if (save_db_) {
+                save_db_->close();
+                save_db_ = NULL;
+            }
+        }
+
+        bool good() {
+            return writer_ != NULL;
+        }
+    private:
+        db::DB* db_;
+        db::Writer* writer_ = NULL;
+        db::DB* save_db_;
+        db::Writer* save_writer_ = NULL;
+        bool save_ = false;
+        std::vector<unsigned char> content_;
+    };
 } // cmd
 
 #endif

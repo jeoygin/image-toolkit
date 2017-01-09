@@ -118,39 +118,8 @@ namespace cmd {
             processor.reset(new SaveProcessor(config.dst(),
                                               config.dst_encoder()));
         } else if (cmd == "delete") {
-            boost::scoped_ptr<db::DB> db(db::open_db(config.src(), db::WRITE));
-            if (!db) {
-                LOG(ERROR) << "Failed to open db: " << config.src();
-                return -1;
-            }
-            boost::scoped_ptr<db::Writer> writer(db->new_writer());
-
-            vector<string> fields;
-            int processed = 0;
-            for (string line; std::getline(list_stream, line); ) {
-                if (line.empty()) {
-                    continue;
-                }
-
-                parse_fields(line, delim, fields);
-                string key = fields[0];
-                writer->del(key);
-
-                ++processed;
-                if (processed % 1000 == 0) {
-                    LOG(INFO) << "Processed " << processed << " records." << endl;
-                    writer->flush();
-                    writer.reset(db->new_writer());
-                }
-            }
-
-            if (processed % 1000 != 0) {
-                LOG(INFO) << "Processed " << processed << " records." << endl;
-                writer->flush();
-                writer.reset(db->new_writer());
-            }
-
-            return 0;
+            processor.reset(new DeleteProcessor(config.src(), config.dst(),
+                                                config.src_encoder()));
         } else {
             std::map<string, string> ops_config;
             ops_config["cmd"] = cmd;

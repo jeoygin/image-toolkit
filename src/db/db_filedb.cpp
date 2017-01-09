@@ -33,8 +33,8 @@ namespace db {
         ofs.close();
     }
 
-    static void remove_file(const string& path) {
-        fs::rm(path);
+    static bool remove_file(const string& path) {
+        return fs::rm(path);
     }
 
     FileDBIterator::FileDBIterator(const string& root,
@@ -72,9 +72,9 @@ namespace db {
         put(key, decoded_value);
     }
 
-    void FileDBWriter::del(const string& key) {
+    bool FileDBWriter::del(const string& key) {
         string path = root_ + "/" + key;
-        remove_file(path);
+        return remove_file(path);
     }
 
     void FileDB::open(const string& source, Mode mode) {
@@ -108,8 +108,8 @@ namespace db {
         put(key, decoded_value);
     }
 
-    void FileDB::del(const string& key) {
+    bool FileDB::del(const string& key) {
         string path = root_ + "/" + key;
-        remove_file(path);
+        return remove_file(path);
     }
 }

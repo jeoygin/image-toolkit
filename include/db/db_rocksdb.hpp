@@ -57,8 +57,9 @@ namespace db {
             batch_.Put(key, value);
         }
 
-        virtual void del(const string& key) {
+        virtual bool del(const string& key) {
             batch_.Delete(key);
+            return true;
         }
 
         virtual void flush() {
@@ -103,8 +104,12 @@ namespace db {
             db_->Put(rocksdb::WriteOptions(), key, value);
         }
 
-        virtual void del(const string& key) {
-            db_->Delete(rocksdb::WriteOptions(), key);
+        virtual bool del(const string& key) {
+            rocksdb::Status s = db_->Delete(rocksdb::WriteOptions(), key);
+            if (s.ok()) {
+                return true;
+            }
+            return false;
         }
 
         virtual RocksDBIterator* new_iterator() {

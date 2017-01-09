@@ -76,7 +76,7 @@ namespace db {
         writer->put(key, value);
     }
 
-    void LMDB::del(const string& key) {
+    bool LMDB::del(const string& key) {
         boost::scoped_ptr<LMDBWriter> writer(new_writer());
         writer->del(key);
     }
@@ -90,11 +90,19 @@ namespace db {
         MDB_CHECK(mdb_put(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value, 0));
     }
 
-    void LMDBWriter::del(const string& key) {
+    bool LMDBWriter::del(const string& key) {
         MDB_val mdb_key;
         mdb_key.mv_data = const_cast<char*>(key.data());
         mdb_key.mv_size = key.size();
-        MDB_CHECK(mdb_del(mdb_txn_, *mdb_dbi_, &mdb_key, NULL));
+
+        int mdb_status = mdb_del(mdb_txn_, *mdb_dbi_, &mdb_key, NULL);
+        if (mdb_status == MDB_SUCCESS) {
+            return true;
+        } else if (mdb_status == MDB_NOTFOUND) {
+            return false;
+        }
+        MDB_CHECK(mdb_status, key);
+        return false;
     }
 
     string LMDBReader::get(const string& key) {
