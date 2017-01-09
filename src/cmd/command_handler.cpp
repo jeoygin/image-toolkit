@@ -1,6 +1,6 @@
 #include "cmd/command_handler.hpp"
 #include "db/db.hpp"
-#include "base64/base64.h"
+#include "encode/encoder.hpp"
 
 #include <map>
 #include <iostream>
@@ -15,7 +15,7 @@
 const std::string delim = "::";
 
 namespace cmd {
-    static void parse_fields(const std::string& line, 
+    static void parse_fields(const std::string& line,
                              const std::string& delim,
                              std::vector<std::string>& fields) {
         fields.clear();
@@ -31,7 +31,7 @@ namespace cmd {
 
     static int process_list(ImageDBConfig& config, std::istream& list_stream,
                             boost::shared_ptr<CommandProcessor> processor) {
-        db::DB* src_db = db::open_db(config.src(), db::READ);
+        db::DB* src_db = db::open_db(config.src(), db::READ, config.src_encoder());
         if (!src_db) {
             LOG(ERROR) << "Failed to open db: " << config.src();
             return -1;
@@ -115,7 +115,8 @@ namespace cmd {
             }
             processor.reset(new PipeProcessor(ops));
         } else if (cmd == "save") {
-            processor.reset(new SaveProcessor(config.dst()));
+            processor.reset(new SaveProcessor(config.dst(),
+                                              config.dst_encoder()));
         } else if (cmd == "delete") {
             boost::scoped_ptr<db::DB> db(db::open_db(config.src(), db::WRITE));
             if (!db) {
@@ -168,6 +169,7 @@ namespace cmd {
             if (!config.dst().empty()) {
                 ops_config["cmd"] = "save";
                 ops_config["key"] = "$2";
+                ops_config["enc"] = config.dst_encoder()->name();
                 boost::shared_ptr<op::Operation> save_op = op::get_operation(ops_config);
                 ops.push_back(save_op);
                 op_ptr.get()->post(save_op);

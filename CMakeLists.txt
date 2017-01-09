@@ -29,6 +29,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/yaml-cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/yaml-cpp/include)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/base64)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/encode)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/fs)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/db)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/cmd)

@@ -10,8 +10,9 @@
 namespace db {
     class LevelDBIterator : public Iterator {
     public:
-        explicit LevelDBIterator(leveldb::Iterator* iter)
-            : iter_(iter) {
+        explicit LevelDBIterator(leveldb::Iterator* iter,
+                                 boost::shared_ptr<encode::Encoder> encoder)
+            : iter_(iter), Iterator(encoder) {
             seek_to_first();
         }
 
@@ -45,7 +46,9 @@ namespace db {
 
     class LevelDBWriter : public Writer {
     public:
-        explicit LevelDBWriter(leveldb::DB* db) : db_(db) {
+        explicit LevelDBWriter(leveldb::DB* db,
+                               boost::shared_ptr<encode::Encoder> encoder)
+            : db_(db), Writer(encoder) {
             CHECK_NOTNULL(db_);
         }
 
@@ -70,7 +73,8 @@ namespace db {
 
     class LevelDB : public DB {
     public:
-        LevelDB() : db_(NULL) {}
+        LevelDB(boost::shared_ptr<encode::Encoder> encoder)
+            : db_(NULL), DB(encoder) {}
 
         virtual ~LevelDB() {
             close();
@@ -103,11 +107,11 @@ namespace db {
         }
 
         virtual LevelDBIterator* new_iterator() {
-            return new LevelDBIterator(db_->NewIterator(leveldb::ReadOptions()));
+            return new LevelDBIterator(db_->NewIterator(leveldb::ReadOptions()), encoder());
         }
 
         virtual LevelDBWriter* new_writer() {
-            return new LevelDBWriter(db_);
+            return new LevelDBWriter(db_, encoder());
         }
 
     private:

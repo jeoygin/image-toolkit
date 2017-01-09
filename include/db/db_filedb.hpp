@@ -5,12 +5,12 @@
 #include <fstream>
 
 #include "db.hpp"
-#include "base64/base64.h"
 
 namespace db {
     class FileDBIterator : public Iterator {
     public:
-        FileDBIterator(const string& root);
+        FileDBIterator(const string& root,
+                       boost::shared_ptr<encode::Encoder> encoder);
 
         ~FileDBIterator() {
             delete_data();
@@ -51,7 +51,9 @@ namespace db {
 
     class FileDBWriter : public Writer {
     public:
-        explicit FileDBWriter(const string& root) : root_(root) {}
+        explicit FileDBWriter(const string& root,
+                              boost::shared_ptr<encode::Encoder> encoder)
+            : root_(root), Writer(encoder) {}
 
         virtual void put(const string& key, const vector<unsigned char>& value);
 
@@ -67,7 +69,7 @@ namespace db {
 
     class FileDB : public DB {
     public:
-        FileDB() {}
+        FileDB(boost::shared_ptr<encode::Encoder> encoder) : DB(encoder) {}
 
         virtual ~FileDB() {
             close();
@@ -119,11 +121,11 @@ namespace db {
         }
 
         virtual FileDBIterator* new_iterator() {
-            return new FileDBIterator(root_);
+            return new FileDBIterator(root_, encoder());
         }
 
         virtual FileDBWriter* new_writer() {
-            return new FileDBWriter(root_);
+            return new FileDBWriter(root_, encoder());
         }
 
     private:

@@ -15,8 +15,10 @@ namespace db {
 
     class LMDBIterator : public Iterator {
     public:
-        explicit LMDBIterator(MDB_txn* mdb_txn, MDB_cursor* mdb_cursor)
-            : mdb_txn_(mdb_txn), mdb_cursor_(mdb_cursor), valid_(false) {
+        explicit LMDBIterator(MDB_txn* mdb_txn, MDB_cursor* mdb_cursor,
+                              boost::shared_ptr<encode::Encoder> encoder)
+            : mdb_txn_(mdb_txn), mdb_cursor_(mdb_cursor), valid_(false),
+              Iterator(encoder) {
             seek_to_first();
         }
 
@@ -67,8 +69,9 @@ namespace db {
 
     class LMDBWriter : public Writer {
     public:
-        explicit LMDBWriter(MDB_dbi* mdb_dbi, MDB_txn* mdb_txn)
-            : mdb_dbi_(mdb_dbi), mdb_txn_(mdb_txn) {
+        explicit LMDBWriter(MDB_dbi* mdb_dbi, MDB_txn* mdb_txn,
+                            boost::shared_ptr<encode::Encoder> encoder)
+            : mdb_dbi_(mdb_dbi), mdb_txn_(mdb_txn), Writer(encoder) {
         }
 
         virtual void put(const string& key, const string& value);
@@ -99,7 +102,8 @@ namespace db {
 
     class LMDB : public DB {
     public:
-        LMDB() : mdb_env_(NULL), reader_(NULL) {}
+        LMDB(boost::shared_ptr<encode::Encoder> encoder)
+            : mdb_env_(NULL), reader_(NULL), DB(encoder) {}
 
         virtual ~LMDB() {
             if (reader_ != NULL) {

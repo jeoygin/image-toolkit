@@ -7,8 +7,10 @@
 #include <fstream>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/shared_ptr.hpp>
 
 #include "config.hpp"
+#include "encode/encoder.hpp"
 #include "cmd/command_handler.hpp"
 
 using namespace std;
@@ -24,6 +26,7 @@ int main(int argc, char** argv) {
     string app_name = boost::filesystem::basename(argv[0]);
     bool verbose = false;
     string cmd, srcpath, dstpath, opsfile, listfile;
+    string src_encoder, dst_encoder;
 
     po::options_description desc("Options");
     desc.add_options()
@@ -31,6 +34,8 @@ int main(int argc, char** argv) {
         ("cmd,c", po::value<string>(&cmd), "command")
         ("src,s", po::value<string>(&srcpath), "src path")
         ("dst,d", po::value<string>(&dstpath), "dst path")
+        ("senc", po::value<string>(&src_encoder), "src encoder")
+        ("denc", po::value<string>(&dst_encoder), "dst encoder")
         ("list,l", po::value<string>(&listfile), "image list file path")
         ("ops,o", po::value<string>(&opsfile), "operations config file path")
         ("verbose,v", "produce verbose output");
@@ -67,11 +72,22 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    boost::shared_ptr<encode::Encoder> senc = encode::get_encoder(src_encoder);
+    boost::shared_ptr<encode::Encoder> denc = encode::get_encoder(dst_encoder);
+    if (!senc) {
+        LOG(ERROR) << "Unsupported encoder: " << src_encoder;
+        return -1;
+    }
+    if (!denc) {
+        LOG(ERROR) << "Unsupported encoder: " << dst_encoder;
+        return -1;
+    }
+
     if (cmd.empty()) {
         cmd = "list";
     }
 
-    ImageDBConfig config(srcpath, dstpath, opsfile, listfile);
+    ImageDBConfig config(srcpath, dstpath, senc, denc, opsfile, listfile);
     cmd::CommandHandler cmd_handler;
     int ret_code = cmd_handler.process(cmd, config);
 

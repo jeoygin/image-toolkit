@@ -22,7 +22,7 @@ endif()
 add_library(db ${SRC})
 
 target_link_libraries(db fs)
-target_link_libraries(db base64)
+target_link_libraries(db encode)
 
 target_link_libraries(db ${Boost_LIBRARIES})
 target_link_libraries(db glog)

@@ -11,8 +11,9 @@
 namespace db {
     class RocksDBIterator : public Iterator {
     public:
-        explicit RocksDBIterator(rocksdb::Iterator* iter)
-            : iter_(iter) {
+        explicit RocksDBIterator(rocksdb::Iterator* iter,
+                                 boost::shared_ptr<encode::Encoder> encoder)
+            : iter_(iter), Iterator(encoder) {
             seek_to_first();
         }
 
@@ -46,7 +47,9 @@ namespace db {
 
     class RocksDBWriter : public Writer {
     public:
-        explicit RocksDBWriter(rocksdb::DB* db) : db_(db) {
+        explicit RocksDBWriter(rocksdb::DB* db,
+                               boost::shared_ptr<encode::Encoder> encoder)
+            : db_(db), Writer(encoder) {
             CHECK_NOTNULL(db_);
         }
 
@@ -71,7 +74,8 @@ namespace db {
 
     class RocksDB : public DB {
     public:
-        RocksDB() : db_(NULL) {}
+        RocksDB(boost::shared_ptr<encode::Encoder> encoder)
+            : db_(NULL), DB(encoder) {}
 
         virtual ~RocksDB() {
             close();
@@ -104,11 +108,12 @@ namespace db {
         }
 
         virtual RocksDBIterator* new_iterator() {
-            return new RocksDBIterator(db_->NewIterator(rocksdb::ReadOptions()));
+            return new RocksDBIterator(db_->NewIterator(rocksdb::ReadOptions()),
+                                       encoder());
         }
 
         virtual RocksDBWriter* new_writer() {
-            return new RocksDBWriter(db_);
+            return new RocksDBWriter(db_, encoder());
         }
 
     private:

@@ -37,7 +37,9 @@ namespace db {
         fs::rm(path);
     }
 
-    FileDBIterator::FileDBIterator(const string& root) : root_(root) {
+    FileDBIterator::FileDBIterator(const string& root,
+                                   boost::shared_ptr<encode::Encoder> encoder)
+        : root_(root), Iterator(encoder) {
         files_.clear();
         fs::list_file(root_, files_);
         seek_to_first();
@@ -47,7 +49,7 @@ namespace db {
         vector<unsigned char> bytes;
         this->value(bytes);
         if (!bytes.empty()) {
-            return base64_encode(bytes.data(), bytes.size());
+            return encoder()->encode(bytes);
         }
         return "";
     }
@@ -66,7 +68,7 @@ namespace db {
 
     void FileDBWriter::put(const string& key, const string& value) {
         vector<unsigned char> decoded_value;
-        base64_decode(value, decoded_value);
+        encoder()->decode(value, decoded_value);
         put(key, decoded_value);
     }
 
@@ -83,7 +85,7 @@ namespace db {
         vector<unsigned char> bytes;
         get(key, bytes);
         if (!bytes.empty()) {
-            return base64_encode(bytes.data(), bytes.size());
+            return encoder()->encode(bytes);
         }
         return "";
     }
@@ -102,7 +104,7 @@ namespace db {
 
     void FileDB::put(const string& key, const string& value) {
         vector<unsigned char> decoded_value;
-        base64_decode(value, decoded_value);
+        encoder()->decode(value, decoded_value);
         put(key, decoded_value);
     }
 

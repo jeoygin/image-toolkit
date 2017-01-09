@@ -9,6 +9,7 @@
 #include "config.hpp"
 #include "operation.hpp"
 #include "db/db.hpp"
+#include "encode/encoder.hpp"
 
 namespace cmd {
 
@@ -101,8 +102,9 @@ namespace cmd {
 
     class SaveProcessor : public CommandProcessor {
     public:
-        SaveProcessor(const string& url) {
-            db_ = db::open_db(url, db::WRITE);
+        SaveProcessor(const string& url,
+                      boost::shared_ptr<encode::Encoder> encoder) {
+            db_ = db::open_db(url, db::WRITE, encoder);
             if (db_) {
                 writer_ = db_->new_writer();
             }
@@ -157,7 +159,6 @@ namespace cmd {
         db::Writer* writer_ = NULL;
         std::vector<unsigned char> content_;
     };
-
 } // cmd
 
 #endif

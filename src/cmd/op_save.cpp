@@ -1,12 +1,21 @@
 #include "cmd/op_save.hpp"
-#include "base64/base64.h"
+#include "encode/encoder.hpp"
 #include "misc/map.hpp"
+
+using encode::Encoder;
 
 namespace op {
     bool SaveOP::init(const map<string, string>& config) {
         string db_url = map_get(config, "db");
+        string enc_str = map_get(config, "enc");
+        boost::shared_ptr<Encoder> encoder = encode::get_encoder(enc_str);
+        if (!encoder) {
+            LOG(ERROR) << "Unsupported encoder: " << enc_str;
+            return false;
+        }
+
         if (!db_url.empty()) {
-            db_ = db::open_db(db_url, db::WRITE);
+            db_ = db::open_db(db_url, db::WRITE, encoder);
             if (db_) {
                 writer_ = db_->new_writer();
             }

@@ -46,14 +46,14 @@ namespace db {
         MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, MDB_RDONLY, &mdb_txn));
         MDB_CHECK(mdb_dbi_open(mdb_txn, NULL, 0, &mdb_dbi_));
         MDB_CHECK(mdb_cursor_open(mdb_txn, mdb_dbi_, &mdb_cursor));
-        return new LMDBIterator(mdb_txn, mdb_cursor);
+        return new LMDBIterator(mdb_txn, mdb_cursor, encoder());
     }
 
     LMDBWriter* LMDB::new_writer() {
         MDB_txn* mdb_txn;
         MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, 0, &mdb_txn));
         MDB_CHECK(mdb_dbi_open(mdb_txn, NULL, 0, &mdb_dbi_));
-        return new LMDBWriter(&mdb_dbi_, mdb_txn);
+        return new LMDBWriter(&mdb_dbi_, mdb_txn, encoder());
     }
 
     LMDBReader* LMDB::new_reader() {

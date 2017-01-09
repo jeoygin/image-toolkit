@@ -17,33 +17,37 @@
 #include <iostream>
 
 namespace db {
-    DB* get_db(const string& backend) {
+    DB* get_db(const string& backend,
+               boost::shared_ptr<encode::Encoder> encoder) {
+        DB* db = NULL;
+
 #ifdef WITH_LEVELDB
         if (backend == "leveldb") {
-            return new LevelDB();
+            db = new LevelDB(encoder);
         }
 #endif
 
 #ifdef WITH_LMDB
         if (backend == "lmdb") {
-            return new LMDB();
+            db = new LMDB(encoder);
         }
 #endif
 
 #ifdef WITH_ROCKSDB
         if (backend == "rocksdb") {
-            return new RocksDB();
+            db = new RocksDB(encoder);
         }
 #endif
 
         if (backend == "filedb") {
-            return new FileDB();
+            db = new FileDB(encoder);
         }
 
-        return NULL;
+        return db;
     }
 
-    DB* open_db(const string& source, Mode mode) {
+    DB* open_db(const string& source, Mode mode,
+                boost::shared_ptr<encode::Encoder> encoder) {
         size_t found = source.find(":");
         string backend = "filedb";
         string path = source;
@@ -53,7 +57,7 @@ namespace db {
             path = source.substr(found+1);
         }
 
-        DB* db = get_db(backend);
+        DB* db = get_db(backend, encoder);
         if (db == NULL && backend != "filedb") {
             LOG(ERROR) << "Unsupported db backend: " << backend;
         }
