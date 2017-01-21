@@ -4,7 +4,7 @@
 #include <boost/scoped_ptr.hpp>
 
 namespace db {
-    static bool read_file(const string& path, vector<unsigned char>& content) {
+    static bool read_file(const string& path, vector<char>& content) {
         ifstream ifs;
         ifs.open(path, ios::in|ios::binary|ios::ate);
 
@@ -37,78 +37,46 @@ namespace db {
         return fs::rm(path);
     }
 
-    FileDBIterator::FileDBIterator(const string& root,
-                                   boost::shared_ptr<encode::Encoder> encoder)
-        : root_(root), Iterator(encoder) {
-        files_.clear();
-        fs::list_file(root_, files_);
-        seek_to_first();
+    FileDBIterator::FileDBIterator(const string& root)
+        : root_(root), inited_(false), random_(false) {
     }
 
     string FileDBIterator::value() {
-        vector<unsigned char> bytes;
-        this->value(bytes);
-        if (!bytes.empty()) {
-            return encoder()->encode(bytes);
+        string path = root_ + "/" + key();
+        vector<char> content;
+        read_file(path, content);
+        return string(content.begin(), content.end());
+    } 
+
+    bool FileDBIterator::valid() {
+        if (random_) {
+            return fs::file_exists(root_ + "/" + key_);
         }
-        return "";
+        if (!inited_) {
+            init();
+        }
+        return iter_ < keys_.end();
     }
 
-    void FileDBIterator::value(vector<unsigned char>& value) {
-        string path = root_ + "/" + *iter_;
-        value.clear();
-        read_file(path, value);
-    }
-
-    void FileDBWriter::put(const string& key, const vector<unsigned char>& value) {
-        string path = root_ + "/" + key;
-        write_file(path, reinterpret_cast<const char*>(value.data()),
-                   value.size());
+    void FileDBIterator::init() {
+        if (!inited_) {
+            keys_.clear();
+            key_map_.clear();
+            fs::list_file(root_, keys_);
+            for (size_t i = 0; i < keys_.size(); i++) {
+                key_map_[keys_[i]] = i;
+            }
+            inited_ = true;
+            seek_to_first();
+        }
     }
 
     void FileDBWriter::put(const string& key, const string& value) {
-        vector<unsigned char> decoded_value;
-        encoder()->decode(value, decoded_value);
-        put(key, decoded_value);
+        string path = root_ + "/" + key;
+        write_file(path, value.data(), value.size());
     }
 
     bool FileDBWriter::del(const string& key) {
-        string path = root_ + "/" + key;
-        return remove_file(path);
-    }
-
-    void FileDB::open(const string& source, Mode mode) {
-        root_ = source;
-    }
-
-    string FileDB::get(const string& key) {
-        vector<unsigned char> bytes;
-        get(key, bytes);
-        if (!bytes.empty()) {
-            return encoder()->encode(bytes);
-        }
-        return "";
-    }
-
-    void FileDB::get(const string& key, vector<unsigned char>& value) {
-        string path = root_ + "/" + key;
-        value.clear();
-        read_file(path, value);
-    }
-
-    void FileDB::put(const string& key, const vector<unsigned char>& value) {
-        string path = root_ + "/" + key;
-        write_file(path, reinterpret_cast<const char*>(value.data()),
-                   value.size());
-    }
-
-    void FileDB::put(const string& key, const string& value) {
-        vector<unsigned char> decoded_value;
-        encoder()->decode(value, decoded_value);
-        put(key, decoded_value);
-    }
-
-    bool FileDB::del(const string& key) {
         string path = root_ + "/" + key;
         return remove_file(path);
     }

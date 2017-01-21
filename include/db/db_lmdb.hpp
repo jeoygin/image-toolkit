@@ -15,32 +15,56 @@ namespace db {
 
     class LMDBIterator : public Iterator {
     public:
-        explicit LMDBIterator(MDB_txn* mdb_txn, MDB_cursor* mdb_cursor,
-                              boost::shared_ptr<encode::Encoder> encoder)
-            : mdb_txn_(mdb_txn), mdb_cursor_(mdb_cursor), valid_(false),
-              Iterator(encoder) {
+        explicit LMDBIterator(MDB_env* mdb_env)
+            : mdb_env_(mdb_env), valid_(false) {
+            MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, MDB_RDONLY, &mdb_txn_));
+            MDB_CHECK(mdb_dbi_open(mdb_txn_, NULL, 0, &mdb_dbi_));
+            MDB_CHECK(mdb_cursor_open(mdb_txn_, mdb_dbi_, &mdb_cursor_));
             seek_to_first();
         }
 
         ~LMDBIterator() {
             mdb_cursor_close(mdb_cursor_);
+            mdb_dbi_close(mdb_env_, mdb_dbi_);
             mdb_txn_abort(mdb_txn_);
         }
 
-        virtual void seek_to_first() {
-            seek(MDB_FIRST);
+        void seek(const string& key) {
+            if (key.size() == 0) {
+                seek_to_first();
+                return;
+            }
+
+            mdb_key_.mv_size = key.size();
+            mdb_key_.mv_data = const_cast<char*>(key.c_str());
+            int mdb_status = mdb_cursor_get(mdb_cursor_, &mdb_key_, &mdb_value_,
+                                            MDB_SET_RANGE);
+            if (mdb_status == MDB_NOTFOUND) {
+                valid_ = false;
+            } else {
+                MDB_CHECK(mdb_status);
+                valid_ = true;
+            }
         }
 
-        virtual void next() {
-            seek(MDB_NEXT);
+        bool supports_seek() {
+            return true;
         }
 
-        virtual string key() {
+        void seek_to_first() {
+            seek_LMDB(MDB_FIRST);
+        }
+
+        void next() {
+            seek_LMDB(MDB_NEXT);
+        }
+
+        string key() {
             return string(static_cast<const char*>(mdb_key_.mv_data),
                           mdb_key_.mv_size);
         }
 
-        virtual string value() {
+        string value() {
             return string(static_cast<const char*>(mdb_value_.mv_data),
                           mdb_value_.mv_size);
         }
@@ -50,7 +74,7 @@ namespace db {
         }
 
     private:
-        void seek(MDB_cursor_op op) {
+        void seek_LMDB(MDB_cursor_op op) {
             int mdb_status = mdb_cursor_get(mdb_cursor_, &mdb_key_,
                                             &mdb_value_, op);
             if (mdb_status == MDB_NOTFOUND) {
@@ -61,7 +85,9 @@ namespace db {
             }
         }
 
+        MDB_env* mdb_env_;
         MDB_txn* mdb_txn_;
+        MDB_dbi mdb_dbi_;
         MDB_cursor* mdb_cursor_;
         MDB_val mdb_key_, mdb_value_;
         bool valid_;
@@ -69,21 +95,31 @@ namespace db {
 
     class LMDBWriter : public Writer {
     public:
-        explicit LMDBWriter(MDB_dbi* mdb_dbi, MDB_txn* mdb_txn,
-                            boost::shared_ptr<encode::Encoder> encoder)
-            : mdb_dbi_(mdb_dbi), mdb_txn_(mdb_txn), Writer(encoder) {
+        explicit LMDBWriter(MDB_env* mdb_env)
+            : mdb_env_(mdb_env) {
+            MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, 0, &mdb_txn_));
+            MDB_CHECK(mdb_dbi_open(mdb_txn_, NULL, 0, &mdb_dbi_));
         }
 
-        virtual void put(const string& key, const string& value);
-
-        virtual bool del(const string& key);
-
-        virtual void flush() {
+        ~LMDBWriter() {
             MDB_CHECK(mdb_txn_commit(mdb_txn_));
+            mdb_dbi_close(mdb_env_, mdb_dbi_);
+        }
+
+        void put(const string& key, const string& value);
+
+        bool del(const string& key);
+
+        void flush() {
+            MDB_CHECK(mdb_txn_commit(mdb_txn_));
+            mdb_dbi_close(mdb_env_, mdb_dbi_);
+            MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, 0, &mdb_txn_));
+            MDB_CHECK(mdb_dbi_open(mdb_txn_, NULL, 0, &mdb_dbi_));
         }
 
     private:
-        MDB_dbi* mdb_dbi_;
+        MDB_env* mdb_env_;
+        MDB_dbi mdb_dbi_;
         MDB_txn* mdb_txn_;
     };
 
@@ -92,54 +128,43 @@ namespace db {
         explicit LMDBReader(MDB_dbi* mdb_dbi, MDB_txn* mdb_txn)
             : mdb_dbi_(mdb_dbi), mdb_txn_(mdb_txn) {}
 
-        virtual ~LMDBReader() {}
+        ~LMDBReader() {}
 
-        virtual string get(const string& key);
+        string get(const string& key);
     private:
+        MDB_env* mdb_env_;
         MDB_dbi* mdb_dbi_;
         MDB_txn* mdb_txn_;
     };
 
     class LMDB : public DB {
     public:
-        LMDB(boost::shared_ptr<encode::Encoder> encoder)
-            : mdb_env_(NULL), reader_(NULL), DB(encoder) {}
+        LMDB(const string& source, Mode mode);
 
-        virtual ~LMDB() {
-            if (reader_ != NULL) {
-                delete reader_;
-                reader_ = NULL;
-            }
+        ~LMDB() {
             close();
         }
 
-        virtual void open(const string& source, Mode mode);
+        void open(const string& source, Mode mode);
 
-        virtual void close() {
+        void close() {
             if (mdb_env_ != NULL) {
-                mdb_dbi_close(mdb_env_, mdb_dbi_);
                 mdb_env_close(mdb_env_);
                 mdb_env_ = NULL;
             }
         }
 
-        virtual string get(const string& key);
+        boost::shared_ptr<Iterator> new_iterator() {
+            return boost::shared_ptr<LMDBIterator>(new LMDBIterator(mdb_env_));
+        }
 
-        virtual void put(const string& key, const string& value);
+        boost::shared_ptr<Writer> new_writer() {
+            return boost::shared_ptr<LMDBWriter>(new LMDBWriter(mdb_env_));
+        }
 
-        virtual bool del(const string& key);
-
-        virtual LMDBIterator* new_iterator();
-
-        virtual LMDBWriter* new_writer();
-
-        virtual LMDBReader* new_reader();
 
     private:
         MDB_env* mdb_env_;
-        MDB_dbi mdb_dbi_;
-
-        LMDBReader* reader_;
     };
 } // namespace db
 

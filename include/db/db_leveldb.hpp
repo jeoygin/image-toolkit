@@ -10,117 +10,100 @@
 namespace db {
     class LevelDBIterator : public Iterator {
     public:
-        explicit LevelDBIterator(leveldb::Iterator* iter,
-                                 boost::shared_ptr<encode::Encoder> encoder)
-            : iter_(iter), Iterator(encoder) {
+        explicit LevelDBIterator(leveldb::DB* db)
+            : iter_(db->NewIterator(leveldb::ReadOptions())) {
             seek_to_first();
         }
 
-        ~LevelDBIterator() {
-            delete iter_;
+        ~LevelDBIterator() {}
+
+        void seek(const string& key) {
+            iter_->Seek(key);
         }
 
-        virtual void seek_to_first() {
+        bool supports_seek() {
+            return true;
+        }
+
+        void seek_to_first() {
             iter_->SeekToFirst();
         }
 
-        virtual void next() {
+        void next() {
             iter_->Next();
         }
 
-        virtual string key() {
+        string key() {
             return iter_->key().ToString();
         }
 
-        virtual string value() {
+        string value() {
             return iter_->value().ToString();
         }
 
-        virtual bool valid() {
+        bool valid() {
             return iter_->Valid();
         }
 
     private:
-        leveldb::Iterator* iter_;
+        boost::shared_ptr<leveldb::Iterator> iter_;
     };
 
     class LevelDBWriter : public Writer {
     public:
-        explicit LevelDBWriter(leveldb::DB* db,
-                               boost::shared_ptr<encode::Encoder> encoder)
-            : db_(db), Writer(encoder) {
+        explicit LevelDBWriter(leveldb::DB* db)
+            : db_(db) {
             CHECK_NOTNULL(db_);
+            batch_.reset(new leveldb::WriteBatch());
+        }
+
+        ~LevelDBWriter() {
+            flush();
         }
 
         virtual void put(const string& key, const string& value) {
-            batch_.Put(key, value);
+            batch_->Put(key, value);
         }
 
         virtual bool del(const string& key) {
-            batch_.Delete(key);
+            batch_->Delete(key);
             return true;
         }
 
         virtual void flush() {
-            leveldb::Status status = db_->Write(leveldb::WriteOptions(), &batch_);
+            leveldb::Status status = db_->Write(leveldb::WriteOptions(), batch_.get());
+            batch_.reset(new leveldb::WriteBatch());
             CHECK(status.ok()) << "Failed to write batch to leveldb"
                                << std::endl << status.ToString();
         }
 
     private:
         leveldb::DB* db_;
-        leveldb::WriteBatch batch_;
+        boost::shared_ptr<leveldb::WriteBatch> batch_;
     };
 
     class LevelDB : public DB {
     public:
-        LevelDB(boost::shared_ptr<encode::Encoder> encoder)
-            : db_(NULL), DB(encoder) {}
+        LevelDB(const string& source, Mode mode);
 
         virtual ~LevelDB() {
             close();
         }
 
-        virtual void open(const string& source, Mode mode);
-
         virtual void close() {
-            if (db_ != NULL) {
-                delete db_;
-                db_ = NULL;
-            }
+            db_.reset();
         }
 
-        virtual string get(const string& key) {
-            string value;
-            leveldb::Status s = db_->Get(leveldb::ReadOptions(), key, &value);
-            if (s.ok()) {
-                return value;
-            }
-            return "";
+        virtual boost::shared_ptr<Iterator> new_iterator() {
+            return boost::shared_ptr<LevelDBIterator>(new LevelDBIterator(db_.get()));
         }
 
-        virtual void put(const string& key, const string& value) {
-            db_->Put(leveldb::WriteOptions(), key, value);
-        }
-
-        virtual bool del(const string& key) {
-            leveldb::Status s = db_->Delete(leveldb::WriteOptions(), key);
-            if (s.ok()) {
-                return true;
-            }
-            return false;
-        }
-
-        virtual LevelDBIterator* new_iterator() {
-            return new LevelDBIterator(db_->NewIterator(leveldb::ReadOptions()), encoder());
-        }
-
-        virtual LevelDBWriter* new_writer() {
-            return new LevelDBWriter(db_, encoder());
+        virtual boost::shared_ptr<Writer> new_writer() {
+            return boost::shared_ptr<LevelDBWriter>(new LevelDBWriter(db_.get()));
         }
 
     private:
-        leveldb::DB* db_;
+        boost::shared_ptr<leveldb::DB> db_;
     };
 } // namespace db
 

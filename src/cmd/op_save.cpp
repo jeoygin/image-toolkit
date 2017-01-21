@@ -8,16 +8,17 @@ namespace op {
     bool SaveOP::init(const map<string, string>& config) {
         string db_url = map_get(config, "db");
         string enc_str = map_get(config, "enc");
-        boost::shared_ptr<Encoder> encoder = encode::get_encoder(enc_str);
-        if (!encoder) {
-            LOG(ERROR) << "Unsupported encoder: " << enc_str;
-            return false;
-        }
 
         if (!db_url.empty()) {
-            db_ = db::open_db(db_url, db::WRITE, encoder);
-            if (db_) {
-                writer_ = db_->new_writer();
+            boost::shared_ptr<Encoder> encoder = encode::get_encoder(enc_str);
+            if (!encoder) {
+                LOG(ERROR) << "Unsupported encoder: " << enc_str;
+                return false;
+            }
+
+            auto db = db::open_db(db_url, db::WRITE);
+            if (db) {
+                dumper_.reset(new store::DataDumper(db, encoder));
             }
         }
 
@@ -27,28 +28,16 @@ namespace op {
     }
 
     bool SaveOP::is_init() {
-        return writer_ != NULL;
+        return dumper_ != NULL;
     }
 
     void SaveOP::flush() {
         if (is_init()) {
-            writer_->flush();
-            delete writer_;
-            writer_ = db_->new_writer();
+            dumper_->flush();
         }
     }
 
     void SaveOP::finish() {
-        if (writer_) {
-            delete writer_;
-            writer_ = NULL;
-        }
-
-        if (db_) {
-            db_->close();
-            delete db_;
-            db_ = NULL;
-        }
     }
 
     cv::Mat SaveOP::execute_current(const cv::Mat& img,
@@ -68,7 +57,7 @@ namespace op {
                 }
                 vector<unsigned char> img_content;
                 cv::imencode(ext, img, img_content);
-                writer_->put(key, img_content);
+                dumper_->put(key, string(img_content.begin(), img_content.end()));
             }
         }
 

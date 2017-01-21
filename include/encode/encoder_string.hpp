@@ -14,13 +14,13 @@ namespace encode {
             return "string";
         }
 
-        string encode(const vector<unsigned char>& data) {
-            return string(data.begin(), data.end());
+        string encode(const string& data) {
+            return data;
         }
 
-        void decode(const string& text, vector<unsigned char>& data) {
-            data.clear();
-            std::copy(text.begin(), text.end(), std::back_inserter(data));
+        bool decode(const string& encoded, string& decoded) {
+            decoded = encoded;
+            return true;
         }
     };
 }

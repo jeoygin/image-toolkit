@@ -14,8 +14,8 @@ namespace encode {
         Encoder() {}
         virtual ~Encoder() {}
         virtual string name() = 0;
-        virtual string encode(const vector<unsigned char>& data) = 0;
-        virtual void decode(const string& text, vector<unsigned char>& data) = 0;
+        virtual string encode(const string& data) = 0;
+        virtual bool decode(const string& encoded, string& decoded) = 0;
     };
 
     boost::shared_ptr<Encoder> get_encoder(const std::string& name);

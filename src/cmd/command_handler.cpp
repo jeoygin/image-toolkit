@@ -31,11 +31,13 @@ namespace cmd {
 
     static int process_list(ImageDBConfig& config, std::istream& list_stream,
                             boost::shared_ptr<CommandProcessor> processor) {
-        db::DB* src_db = db::open_db(config.src(), db::READ, config.src_encoder());
+        boost::shared_ptr<db::DB> src_db = db::open_db(config.src(), db::READ);
         if (!src_db) {
             LOG(ERROR) << "Failed to open db: " << config.src();
             return -1;
         }
+        boost::shared_ptr<store::DataLoader> loader(new store::DataLoader(src_db,
+                                                        config.src_encoder()));
 
         int processed = 0;
         vector<string> fields;
@@ -49,7 +51,7 @@ namespace cmd {
 
             try {
                 string key = fields[0];
-                int ret_code = processor->run(src_db, processed, fields);
+                int ret_code = processor->run(loader, processed, fields);
                 if (ret_code == -1) {
                     LOG(ERROR) << "Invalid configuration: " << key << endl;
                 } else if (ret_code == -2) {
@@ -82,12 +84,12 @@ namespace cmd {
 
     int CommandHandler::process(const string& cmd, ImageDBConfig& config) {
         if (cmd == "list") {
-            boost::scoped_ptr<db::DB> db(db::open_db(config.src(), db::READ));
+            boost::shared_ptr<db::DB> db = db::open_db(config.src(), db::READ);
             if (!db) {
                 LOG(ERROR) << "Failed to open db: " << config.src();
                 return -1;
             }
-            for (boost::scoped_ptr<db::Iterator> it(db->new_iterator());
+            for (boost::shared_ptr<db::Iterator> it = db->new_iterator();
                  it->valid(); it->next()) {
                 cout << it->key() << endl;
             }
@@ -150,6 +152,7 @@ namespace cmd {
         if (processor->good()) {
             ret_code = process_list(config, list_stream, processor);
         } else {
+            LOG(ERROR) << "Unable to process command";
             ret_code = -1;
         }
 

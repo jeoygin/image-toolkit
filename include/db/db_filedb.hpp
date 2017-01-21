@@ -2,6 +2,7 @@
 #define DB_FILEDB_HPP
 
 #include <string>
+#include <map>
 #include <fstream>
 
 #include "db.hpp"
@@ -9,53 +10,69 @@
 namespace db {
     class FileDBIterator : public Iterator {
     public:
-        FileDBIterator(const string& root,
-                       boost::shared_ptr<encode::Encoder> encoder);
+        FileDBIterator(const string& root);
 
-        ~FileDBIterator() {
-            delete_data();
+        ~FileDBIterator() {}
+
+        virtual void seek(const string& key) {
+            key_ = key;
+            random_ = true;
+        }
+
+        virtual bool supports_seek() {
+            return true;
         }
 
         virtual void seek_to_first() {
-            iter_ = files_.begin();
+            if (!inited_) {
+                init();
+            }
+            iter_ = keys_.begin();
         }
 
         virtual void next() {
-            iter_++;
+            if (!inited_) {
+                init();
+            }
+            if (!random_) {
+                iter_++;
+            } else {
+                std::map<string, int>::iterator it = key_map_.find(key_);
+                if (it != key_map_.end()) {
+                    iter_ = keys_.begin() + it->second;
+                } else {
+                    iter_ = keys_.end();
+                }
+                random_ = false;
+            }
         }
 
         virtual string key() {
-            return *iter_;
+            if (!random_ && !inited_) {
+                init();
+            }
+            return !random_ ? *iter_ : key_;
         }
 
         virtual string value();
-        virtual void value(vector<unsigned char>& value);
+        virtual bool valid();
 
-        virtual bool valid() {
-            return iter_ < files_.end();
-        }
 
     private:
         string root_;
-        vector<string> files_;
+        bool inited_;
+        bool random_;
+        vector<string> keys_;
+        map<string, int> key_map_;
         vector<string>::iterator iter_;
-        char* data_ = NULL;
+        string key_;
 
-        void delete_data() {
-            if (data_ != NULL) {
-                delete data_;
-                data_ = NULL;
-            }
-        }
+        virtual void init();
     };
 
     class FileDBWriter : public Writer {
     public:
-        explicit FileDBWriter(const string& root,
-                              boost::shared_ptr<encode::Encoder> encoder)
-            : root_(root), Writer(encoder) {}
-
-        virtual void put(const string& key, const vector<unsigned char>& value);
+        explicit FileDBWriter(const string& root) : root_(root) {}
 
         virtual void put(const string& key, const string& value);
 
@@ -69,63 +86,21 @@ namespace db {
 
     class FileDB : public DB {
     public:
-        FileDB(boost::shared_ptr<encode::Encoder> encoder) : DB(encoder) {}
+        FileDB(const string& source, Mode mode) : DB(source, mode), root_(source) {}
 
         virtual ~FileDB() {
             close();
         }
 
-        virtual void open(const string& source, Mode mode);
-
         virtual void close() {
         }
 
-        virtual string get(const string& key);
-
-        virtual void get(const string& key, vector<unsigned char>& value);
-
-        virtual void put(const string& key, const vector<unsigned char>& value);
-
-        virtual void put(const string& key, const string& value);
-
-        virtual bool del(const string& key);
-
-        int copy(const string& key, DB* dst, const string& dst_key,
-                 vector<unsigned char>& aux) {
-            if (!dst) {
-                return -1;
-            }
-
-            get(key, aux);
-            if (aux.empty()) {
-                return -2;
-            }
-
-            dst->put(dst_key, aux);
-            return 0;
+        virtual boost::shared_ptr<Iterator> new_iterator() {
+            return boost::shared_ptr<FileDBIterator>(new FileDBIterator(root_));
         }
 
-        int copy(const string& key, Writer* writer, const string& dst_key,
-                 vector<unsigned char>& aux) {
-            if (!writer) {
-                return -1;
-            }
-
-            get(key, aux);
-            if (aux.empty()) {
-                return -2;
-            }
-
-            writer->put(dst_key, aux);
-            return 0;
-        }
-
-        virtual FileDBIterator* new_iterator() {
-            return new FileDBIterator(root_, encoder());
-        }
-
-        virtual FileDBWriter* new_writer() {
-            return new FileDBWriter(root_, encoder());
+        virtual boost::shared_ptr<Writer> new_writer() {
+            return boost::shared_ptr<FileDBWriter>(new FileDBWriter(root_));
         }
 
     private:

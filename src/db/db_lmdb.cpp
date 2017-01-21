@@ -8,7 +8,7 @@
 namespace db {
     const size_t LMDB_MAP_SIZE = 1099511627776;  // 1 TB
 
-    void LMDB::open(const string& source, Mode mode) {
+    LMDB::LMDB(const string& source, Mode mode) : DB(source, mode) {
         MDB_CHECK(mdb_env_create(&mdb_env_));
         MDB_CHECK(mdb_env_set_mapsize(mdb_env_, LMDB_MAP_SIZE));
         if (mode != READ) {
@@ -40,54 +40,13 @@ namespace db {
         LOG(INFO) << "Opened lmdb " << source;
     }
 
-    LMDBIterator* LMDB::new_iterator() {
-        MDB_txn* mdb_txn;
-        MDB_cursor* mdb_cursor;
-        MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, MDB_RDONLY, &mdb_txn));
-        MDB_CHECK(mdb_dbi_open(mdb_txn, NULL, 0, &mdb_dbi_));
-        MDB_CHECK(mdb_cursor_open(mdb_txn, mdb_dbi_, &mdb_cursor));
-        return new LMDBIterator(mdb_txn, mdb_cursor, encoder());
-    }
-
-    LMDBWriter* LMDB::new_writer() {
-        MDB_txn* mdb_txn;
-        MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, 0, &mdb_txn));
-        MDB_CHECK(mdb_dbi_open(mdb_txn, NULL, 0, &mdb_dbi_));
-        return new LMDBWriter(&mdb_dbi_, mdb_txn, encoder());
-    }
-
-    LMDBReader* LMDB::new_reader() {
-        if (reader_ == NULL) {
-            MDB_txn* mdb_txn;
-            MDB_CHECK(mdb_txn_begin(mdb_env_, NULL, MDB_RDONLY, &mdb_txn));
-            MDB_CHECK(mdb_dbi_open(mdb_txn, NULL, 0, &mdb_dbi_));
-            reader_ = new LMDBReader(&mdb_dbi_, mdb_txn);
-        }
-        return reader_;
-    }
-
-    string LMDB::get(const string& key) {
-        LMDBReader* reader = new_reader();
-        return reader->get(key);
-    }
-
-    void LMDB::put(const string& key, const string& value) {
-        boost::scoped_ptr<LMDBWriter> writer(new_writer());
-        writer->put(key, value);
-    }
-
-    bool LMDB::del(const string& key) {
-        boost::scoped_ptr<LMDBWriter> writer(new_writer());
-        writer->del(key);
-    }
-
     void LMDBWriter::put(const string& key, const string& value) {
         MDB_val mdb_key, mdb_value;
         mdb_key.mv_data = const_cast<char*>(key.data());
         mdb_key.mv_size = key.size();
         mdb_value.mv_data = const_cast<char*>(value.data());
         mdb_value.mv_size = value.size();
-        MDB_CHECK(mdb_put(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value, 0));
+        MDB_CHECK(mdb_put(mdb_txn_, mdb_dbi_, &mdb_key, &mdb_value, 0));
     }
 
     bool LMDBWriter::del(const string& key) {
@@ -95,7 +54,7 @@ namespace db {
         mdb_key.mv_data = const_cast<char*>(key.data());
         mdb_key.mv_size = key.size();
 
-        int mdb_status = mdb_del(mdb_txn_, *mdb_dbi_, &mdb_key, NULL);
+        int mdb_status = mdb_del(mdb_txn_, mdb_dbi_, &mdb_key, NULL);
         if (mdb_status == MDB_SUCCESS) {
             return true;
         } else if (mdb_status == MDB_NOTFOUND) {
@@ -103,17 +62,5 @@ namespace db {
         }
         MDB_CHECK(mdb_status, key);
         return false;
-    }
-
-    string LMDBReader::get(const string& key) {
-        MDB_val mdb_key, mdb_value;
-        mdb_key.mv_data = const_cast<char*>(key.data());
-        mdb_key.mv_size = key.size();
-        if (mdb_get(mdb_txn_, *mdb_dbi_, &mdb_key, &mdb_value) != MDB_SUCCESS) {
-            return "";
-        }
-
-        return string(static_cast<const char*>(mdb_value.mv_data),
-                      mdb_value.mv_size);
     }
  } // namespace db

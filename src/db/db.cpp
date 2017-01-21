@@ -17,37 +17,7 @@
 #include <iostream>
 
 namespace db {
-    DB* get_db(const string& backend,
-               boost::shared_ptr<encode::Encoder> encoder) {
-        DB* db = NULL;
-
-#ifdef WITH_LEVELDB
-        if (backend == "leveldb") {
-            db = new LevelDB(encoder);
-        }
-#endif
-
-#ifdef WITH_LMDB
-        if (backend == "lmdb") {
-            db = new LMDB(encoder);
-        }
-#endif
-
-#ifdef WITH_ROCKSDB
-        if (backend == "rocksdb") {
-            db = new RocksDB(encoder);
-        }
-#endif
-
-        if (backend == "filedb") {
-            db = new FileDB(encoder);
-        }
-
-        return db;
-    }
-
-    DB* open_db(const string& source, Mode mode,
-                boost::shared_ptr<encode::Encoder> encoder) {
+    boost::shared_ptr<DB> open_db(const string& source, Mode mode) {
         size_t found = source.find(":");
         string backend = "filedb";
         string path = source;
@@ -57,15 +27,33 @@ namespace db {
             path = source.substr(found+1);
         }
 
-        DB* db = get_db(backend, encoder);
-        if (db == NULL && backend != "filedb") {
-            LOG(ERROR) << "Unsupported db backend: " << backend;
+        boost::shared_ptr<DB> db;
+        if (backend == "filedb") {
+            db.reset(new FileDB(path, mode));
         }
 
-        if (db != NULL) {
-            db->open(path, mode);
+#ifdef WITH_LEVELDB
+        if (backend == "leveldb") {
+            db.reset(new LevelDB(path, mode));
+        }
+#endif
+
+#ifdef WITH_LMDB
+        if (backend == "lmdb") {
+            db.reset(new LMDB(path, mode));
+        }
+#endif
+
+#ifdef WITH_ROCKSDB
+        if (backend == "rocksdb") {
+            db.reset(new RocksDB(path, mode));
+        }
+#endif
+        
+        if (!db && backend != "filedb") {
+            LOG(ERROR) << "Unsupported db backend: " << backend;
         }
 
         return db;
     }
-} // namespace cb
+} // namespace db

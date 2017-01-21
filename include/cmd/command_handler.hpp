@@ -8,8 +8,8 @@
 
 #include "config.hpp"
 #include "operation.hpp"
-#include "db/db.hpp"
-#include "encode/encoder.hpp"
+#include "store/data_loader.hpp"
+#include "store/data_dumper.hpp"
 
 namespace cmd {
 
@@ -20,8 +20,8 @@ namespace cmd {
 
     class CommandProcessor {
     public:
-        virtual int run(db::DB* db, const int idx,
-                        const std::vector<string>& fields) = 0;
+        virtual int run(boost::shared_ptr<store::DataLoader> loader,
+                        const int idx, const std::vector<string>& fields) = 0;
         virtual void refresh() = 0;
         virtual void done() = 0;
         virtual bool good() = 0;
@@ -35,11 +35,11 @@ namespace cmd {
 
         }
 
-        int run(db::DB* db, const int idx,
+        int run(boost::shared_ptr<store::DataLoader> loader, const int idx,
                 const std::vector<string>& fields) {
             if (ops_.empty()) {
                 return -1;
-            } else if (db == NULL) {
+            } else if (!loader) {
                 return -2;
             } else if (fields.size() < 1) {
                 return -3;
@@ -51,11 +51,11 @@ namespace cmd {
             if (it != cache_.end()) {
                 img = *(it->second);
             } else {
-                content_.clear();
-                db->get(key, content_);
-                if (!content_.empty()) {
+                string img_str = loader->get(key);
+                if (!img_str.empty()) {
+                    vector<unsigned char> content(img_str.begin(), img_str.end());
                     boost::shared_ptr<cv::Mat> img_ptr(new cv::Mat());
-                    *img_ptr = img = cv::imdecode(content_, CV_LOAD_IMAGE_UNCHANGED);
+                    *img_ptr = img = cv::imdecode(content, CV_LOAD_IMAGE_UNCHANGED);
                     cache_keys_.push(key);
                     cache_[key] = img_ptr;
 
@@ -95,7 +95,6 @@ namespace cmd {
         }
     private:
         const std::vector<boost::shared_ptr<op::Operation>>& ops_;
-        std::vector<unsigned char> content_;
         std::queue<std::string> cache_keys_;
         std::map<std::string, boost::shared_ptr<cv::Mat>> cache_;
     };
@@ -104,87 +103,76 @@ namespace cmd {
     public:
         SaveProcessor(const string& url,
                       boost::shared_ptr<encode::Encoder> encoder) {
-            db_ = db::open_db(url, db::WRITE, encoder);
-            if (db_) {
-                writer_ = db_->new_writer();
+            boost::shared_ptr<db::DB> db = db::open_db(url, db::WRITE);
+            if (db) {
+                dumper_.reset(new store::DataDumper(db, encoder));
             }
         }
 
         ~SaveProcessor() {}
 
-        int run(db::DB* db, const int idx,
+        int run(boost::shared_ptr<store::DataLoader> loader, const int idx,
                 const std::vector<string>& fields) {
-            if (!writer_) {
+            if (!dumper_) {
                 return -1;
-            } else if (db == NULL) {
+            } else if (!loader) {
                 return -2;
             } else if (fields.size() < 2) {
                 return -3;
             }
 
             std::string src_key = fields[0], dst_key = fields[1];
-            int ret = db->copy(src_key, writer_, dst_key, content_);
-            if (ret == -2) {
+            string content = loader->get(src_key);
+            if (content.empty()) {
                 return -4;
             }
+            dumper_->put(dst_key, content);
 
             return 0;
         }
 
         void refresh() {
-            if (writer_) {
-                writer_->flush();
-                delete writer_;
-                writer_ = db_->new_writer();
+            if (dumper_) {
+                dumper_->flush();
             }
         }
 
-        void done() {
-            if (writer_) {
-                delete writer_;
-                writer_ = NULL;
-            }
-
-            if (db_) {
-                db_->close();
-                db_ = NULL;
-            }
-        }
+        void done() {}
 
         bool good() {
-            return writer_ != NULL;
+            return dumper_ != NULL;
         }
     private:
-        db::DB* db_;
-        db::Writer* writer_ = NULL;
-        std::vector<unsigned char> content_;
+        boost::shared_ptr<store::DataDumper> dumper_;
     };
 
     class DeleteProcessor : public CommandProcessor {
     public:
         DeleteProcessor(const string& url, const string& save_url,
                         boost::shared_ptr<encode::Encoder> encoder) {
-            db_ = db::open_db(url, db::WRITE, encoder);
-            if (db_) {
-                writer_ = db_->new_writer();
-            }
-
             if (!save_url.empty()) {
                 save_ = true;
-                save_db_ = db::open_db(save_url, db::WRITE, encoder);
-                if (save_db_) {
-                    save_writer_ = save_db_->new_writer();
+                boost::shared_ptr<db::DB> save_db = db::open_db(save_url, 
+                                                                db::WRITE);
+                if (save_db) {
+                    save_dumper_.reset(new store::DataDumper(save_db, encoder));
                 }
+            }
+
+            boost::shared_ptr<db::DB> db = db::open_db(url, db::WRITE);
+            if (db) {
+                dumper_.reset(new store::DataDumper(db, encoder));
+                loader_.reset(new store::DataLoader(db, encoder));
             }
         }
 
         ~DeleteProcessor() {}
 
-        int run(db::DB* db, const int idx,
+        int run(boost::shared_ptr<store::DataLoader> loader, const int idx,
                 const std::vector<string>& fields) {
-            if (!writer_ || (save_ && !save_writer_)) {
+            if (!dumper_ || (save_ && !loader_ && !save_dumper_)) {
                 return -1;
-            } else if (db == NULL) {
+            } else if (!loader) {
                 return -2;
             } else if ((!save_ && fields.size() < 1)
                        || (save_ && fields.size() < 2)) {
@@ -194,13 +182,14 @@ namespace cmd {
             std::string key = fields[0];
             if (save_) {
                 std::string dst_key = fields[1];
-                int ret = db_->copy(key, save_writer_, dst_key, content_);
-                if (ret == -2) {
+                string content = loader_->get(key);
+                if (content.empty()) {
                     return -4;
                 }
+                save_dumper_->put(dst_key, content);
             }
 
-            if (!writer_->del(key)) {
+            if (!dumper_->del(key)) {
                 return -4;
             }
 
@@ -208,51 +197,26 @@ namespace cmd {
         }
 
         void refresh() {
-            if (writer_) {
-                writer_->flush();
-                delete writer_;
-                writer_ = db_->new_writer();
+            if (dumper_) {
+                dumper_->flush();
             }
 
-            if (save_writer_) {
-                save_writer_->flush();
-                delete save_writer_;
-                save_writer_ = save_db_->new_writer();
+            if (save_dumper_) {
+                save_dumper_->flush();
             }
         }
 
         void done() {
-            if (writer_) {
-                delete writer_;
-                writer_ = NULL;
-            }
-
-            if (db_) {
-                db_->close();
-                db_ = NULL;
-            }
-
-            if (save_writer_) {
-                delete save_writer_;
-                save_writer_ = NULL;
-            }
-
-            if (save_db_) {
-                save_db_->close();
-                save_db_ = NULL;
-            }
         }
 
         bool good() {
-            return writer_ != NULL;
+            return dumper_ != NULL;
         }
     private:
-        db::DB* db_;
-        db::Writer* writer_ = NULL;
-        db::DB* save_db_;
-        db::Writer* save_writer_ = NULL;
+        boost::shared_ptr<store::DataLoader> loader_;
+        boost::shared_ptr<store::DataDumper> dumper_;
+        boost::shared_ptr<store::DataDumper> save_dumper_;
         bool save_ = false;
-        std::vector<unsigned char> content_;
     };
 } // cmd
 

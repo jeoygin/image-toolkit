@@ -15,14 +15,16 @@ namespace encode {
             return "base64";
         }
 
-        string encode(const vector<unsigned char>& data) {
-            return base64_encode(data.data(), data.size());
+        string encode(const string& data) {
+            return base64_encode(reinterpret_cast<const unsigned char*>(data.data()),
+                                 data.size());
         }
 
-        void decode(const string& text, vector<unsigned char>& data) {
-            data.clear();
-            if (!text.empty()) {
-                base64_decode(text, data);
+        bool decode(const string& encoded, string& decoded) {
+            if (!encoded.empty()) {
+                return base64_decode(encoded, decoded);
+            } else {
+                return false;
             }
         }
     };

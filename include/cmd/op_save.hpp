@@ -3,22 +3,12 @@
 
 #include "operation.hpp"
 #include "db/db.hpp"
+#include "store/data_dumper.hpp"
 
 namespace op {
     class SaveOP : public Operation {
     public:
-        ~SaveOP() {
-            if (writer_) {
-                delete writer_;
-                writer_ = NULL;
-            }
-
-            if (db_) {
-                db_->close();
-                delete db_;
-                db_ = NULL;
-            }
-        }
+        ~SaveOP() {}
 
         bool init(const std::map<string, string>& config);
         bool is_init();
@@ -30,8 +20,7 @@ namespace op {
         }
 
     private:
-        db::DB* db_;
-        db::Writer* writer_;
+        shared_ptr<store::DataDumper> dumper_;
         int key_fno_ = 2;
         string key_;
         cv::Mat execute_current(const cv::Mat& img,
