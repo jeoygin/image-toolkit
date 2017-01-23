@@ -24,7 +24,7 @@ namespace store {
         string get(const string& key) {
             if (iter_->supports_seek()) {
                 iter_->seek(key);
-                if (iter_->valid()) {
+                if (iter_->valid() && iter_->key() == key) {
                     string value = iter_->value();
                     string data;
                     if (encoder_->decode(value, data)) {
